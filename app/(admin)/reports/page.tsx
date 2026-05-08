@@ -16,7 +16,7 @@ import { RevenueChart } from "@/components/admin/charts/revenue-chart"
 import { ProfitChart } from "@/components/admin/charts/profit-chart"
 import { ExpenseChart } from "@/components/admin/charts/expense-chart"
 import { StudentGrowthChart } from "@/components/admin/charts/student-growth-chart"
-import { BatchPerformance } from "@/components/admin/charts/batch-performance"
+import { BatchPerformanceChart } from "@/components/admin/charts/batch-performance"
 import {
   Card,
   CardContent,
@@ -119,7 +119,7 @@ export default function ReportsPage() {
 
       <div className="grid gap-6 lg:grid-cols-2">
         <StudentGrowthChart />
-        <BatchPerformance />
+        <BatchPerformanceChart />
       </div>
 
       <Card>
