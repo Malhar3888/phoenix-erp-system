@@ -4,12 +4,21 @@ import { PageHeader } from "@/components/admin/page-header"
 import { PaymentFormDialog } from "@/components/admin/payment-form-dialog"
 import { StatCard } from "@/components/admin/stat-card"
 import { PaymentsTable } from "@/components/admin/payments-table"
-import { kpis, payments, students } from "@/lib/mock-data"
+import { getAllPayments, getAllStudents, getDashboardKpis } from "@/lib/queries"
 import { formatINR } from "@/lib/format"
 
-export default function FeesPage() {
+export const dynamic = "force-dynamic"
+
+export default async function FeesPage() {
+  const [payments, students, kpis] = await Promise.all([
+    getAllPayments(),
+    getAllStudents(),
+    getDashboardKpis(),
+  ])
+
+  const ym = new Date().toISOString().slice(0, 7)
   const collectedThisMonth = payments
-    .filter((p) => new Date(p.date).getMonth() === new Date().getMonth())
+    .filter((p) => p.date.slice(0, 7) === ym)
     .reduce((s, p) => s + p.amount, 0)
 
   const studentsWithDues = students.filter((s) => s.remainingFees > 0).length
@@ -19,7 +28,7 @@ export default function FeesPage() {
       <PageHeader
         title="Fees & Payments"
         description="Record payments, generate PDF receipts and share them on WhatsApp instantly."
-        actions={<PaymentFormDialog />}
+        actions={<PaymentFormDialog students={students} />}
       />
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -28,21 +37,19 @@ export default function FeesPage() {
           value={formatINR(kpis.totalRevenue)}
           icon={Banknote}
           accent="primary"
-          delta={18}
           hint="all-time"
         />
         <StatCard
           label="This Month"
           value={formatINR(collectedThisMonth)}
           icon={TrendingUp}
-          delta={9}
+          hint={ym}
         />
         <StatCard
           label="Pending Fees"
           value={formatINR(kpis.pendingFees)}
           icon={AlertCircle}
-          delta={-4}
-          hint="reducing"
+          hint="outstanding"
         />
         <StatCard
           label="Students with Dues"
@@ -60,7 +67,7 @@ export default function FeesPage() {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <PaymentsTable />
+          <PaymentsTable payments={payments} students={students} />
         </CardContent>
       </Card>
     </div>

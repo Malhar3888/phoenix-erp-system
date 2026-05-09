@@ -7,7 +7,6 @@ import {
   ChartTooltipContent,
   type ChartConfig,
 } from "@/components/ui/chart"
-import { expenseBreakdown } from "@/lib/mock-data"
 import { formatINR } from "@/lib/format"
 
 const COLORS = [
@@ -24,9 +23,18 @@ const chartConfig = {
   amount: { label: "Amount" },
 } satisfies ChartConfig
 
-export function ExpenseChart() {
-  const data = expenseBreakdown()
+type Row = { category: string; amount: number }
+
+export function ExpenseChart({ data = [] }: { data?: Row[] }) {
   const total = data.reduce((s, d) => s + d.amount, 0)
+
+  if (total === 0) {
+    return (
+      <div className="grid h-48 place-items-center rounded-xl border border-dashed border-border/60 text-sm text-muted-foreground">
+        No expenses recorded yet.
+      </div>
+    )
+  }
 
   return (
     <div className="grid items-center gap-4 sm:grid-cols-[1fr,1.1fr]">
@@ -37,7 +45,7 @@ export function ExpenseChart() {
               content={
                 <ChartTooltipContent
                   hideLabel
-                  formatter={(value, name) => [`₹ ${Number(value).toLocaleString("en-IN")} `, String(name)]}
+                  formatter={(value, name) => [`INR ${Number(value).toLocaleString("en-IN")} `, String(name)]}
                 />
               }
             />
@@ -59,7 +67,7 @@ export function ExpenseChart() {
       </ChartContainer>
 
       <ul className="space-y-2 text-sm">
-        {data
+        {[...data]
           .sort((a, b) => b.amount - a.amount)
           .map((d, i) => {
             const pct = Math.round((d.amount / total) * 100)

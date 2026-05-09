@@ -1,11 +1,12 @@
 "use client"
 
-import { useEffect, useRef, useState } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
 import { Camera, CheckCircle2, ScanLine, StopCircle } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
-import { getStudentById } from "@/lib/mock-data"
 import { initialsFrom } from "@/lib/format"
+import type { Student } from "@/lib/types"
+import { markAttendance } from "@/lib/actions"
 import { toast } from "sonner"
 
 type Result = {
@@ -14,11 +15,13 @@ type Result = {
   time: string
 }
 
-export function QrScanner() {
+export function QrScanner({ students }: { students: Student[] }) {
   const containerId = "qr-scanner-region"
   const scannerRef = useRef<unknown>(null)
   const [scanning, setScanning] = useState(false)
   const [recent, setRecent] = useState<Result[]>([])
+
+  const studentMap = useMemo(() => new Map(students.map((s) => [s.id, s])), [students])
 
   async function start() {
     try {
@@ -53,7 +56,7 @@ export function QrScanner() {
     setScanning(false)
   }
 
-  function onDecoded(text: string) {
+  async function onDecoded(text: string) {
     let studentId = text
     try {
       const parsed = JSON.parse(text)
@@ -61,20 +64,35 @@ export function QrScanner() {
     } catch {
       // raw id
     }
-    const student = getStudentById(studentId)
+    const student = studentMap.get(studentId)
     if (!student) {
       toast.error(`Unknown QR: ${text.slice(0, 24)}`)
       return
     }
-    // Avoid duplicate within 4s
-    if (recent.some((r) => r.studentId === student.id && Date.now() - new Date(r.time).getTime() < 4000)) {
+    if (
+      recent.some(
+        (r) => r.studentId === student.id && Date.now() - new Date(r.time).getTime() < 4000,
+      )
+    ) {
       return
     }
-    setRecent((arr) => [
-      { studentId: student.id, name: student.name, time: new Date().toISOString() },
-      ...arr,
-    ].slice(0, 10))
-    toast.success(`Marked present: ${student.name}`)
+    try {
+      await markAttendance({
+        studentId: student.id,
+        date: new Date().toISOString().slice(0, 10),
+        status: "present",
+      })
+      setRecent((arr) =>
+        [
+          { studentId: student.id, name: student.name, time: new Date().toISOString() },
+          ...arr,
+        ].slice(0, 10),
+      )
+      toast.success(`Marked present: ${student.name}`)
+    } catch (err) {
+      console.log("[v0] markAttendance via QR failed:", err)
+      toast.error(`Could not save attendance for ${student.name}`)
+    }
   }
 
   useEffect(() => {
@@ -119,7 +137,7 @@ export function QrScanner() {
                 Stop scanner
               </Button>
             ) : (
-              <Button onClick={start} className="flex-1">
+              <Button onClick={start} className="flex-1" disabled={students.length === 0}>
                 <Camera />
                 Start scanner
               </Button>
@@ -135,7 +153,9 @@ export function QrScanner() {
 
           {recent.length === 0 ? (
             <div className="rounded-xl border border-dashed border-border/60 p-8 text-center text-sm text-muted-foreground">
-              Scans will appear here in real time.
+              {students.length === 0
+                ? "Add students first — their QR codes appear on the profile page."
+                : "Scans will appear here in real time."}
             </div>
           ) : (
             <ul className="space-y-2">

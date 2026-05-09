@@ -5,13 +5,22 @@ import type {
   Payment,
   Expense,
   Inquiry,
-  Attendance,
+  AttendanceRecord,
   StudentDocument,
 } from "@/lib/types"
 
-/* ---------- Row mappers (snake_case -> camelCase) ---------- */
+/* ---------- Mappers ---------- */
+
+function toDateStr(v: unknown): string {
+  if (!v) return ""
+  if (typeof v === "string") return v.length > 10 ? v.slice(0, 10) : v
+  if (v instanceof Date) return v.toISOString().slice(0, 10)
+  return String(v)
+}
 
 function mapStudent(r: any): Student {
+  const totalFees = Number(r.total_fees ?? 0)
+  const paidFees = Number(r.paid_fees ?? 0)
   return {
     id: r.id,
     name: r.name,
@@ -21,13 +30,11 @@ function mapStudent(r: any): Student {
     address: r.address ?? "",
     course: r.course,
     batch: r.batch,
-    joiningDate: r.joining_date instanceof Date ? r.joining_date.toISOString().slice(0, 10) : r.joining_date,
-    completionDate: r.completion_date
-      ? r.completion_date instanceof Date
-        ? r.completion_date.toISOString().slice(0, 10)
-        : r.completion_date
-      : undefined,
-    totalFees: Number(r.total_fees),
+    joiningDate: toDateStr(r.joining_date),
+    completionDate: r.completion_date ? toDateStr(r.completion_date) : undefined,
+    totalFees,
+    paidFees,
+    remainingFees: Math.max(totalFees - paidFees, 0),
     status: r.status,
   }
 }
@@ -36,10 +43,11 @@ function mapPayment(r: any): Payment {
   return {
     id: r.id,
     studentId: r.student_id,
+    studentName: r.student_name ?? undefined,
     amount: Number(r.amount),
     mode: r.mode,
     receiptNo: r.receipt_no,
-    date: r.date instanceof Date ? r.date.toISOString().slice(0, 10) : r.date,
+    date: toDateStr(r.date),
     note: r.note ?? undefined,
   }
 }
@@ -47,9 +55,10 @@ function mapPayment(r: any): Payment {
 function mapExpense(r: any): Expense {
   return {
     id: r.id,
+    title: r.title ?? "",
     category: r.category,
     amount: Number(r.amount),
-    date: r.date instanceof Date ? r.date.toISOString().slice(0, 10) : r.date,
+    date: toDateStr(r.date),
     note: r.note ?? undefined,
     paidTo: r.paid_to ?? undefined,
   }
@@ -64,16 +73,17 @@ function mapInquiry(r: any): Inquiry {
     course: r.course,
     source: r.source,
     status: r.status,
-    note: r.note ?? undefined,
-    date: r.date instanceof Date ? r.date.toISOString().slice(0, 10) : r.date,
+    notes: r.notes ?? r.note ?? undefined,
+    date: toDateStr(r.date),
+    followUpDate: r.follow_up_date ? toDateStr(r.follow_up_date) : "",
   }
 }
 
-function mapAttendance(r: any): Attendance {
+function mapAttendance(r: any): AttendanceRecord {
   return {
     id: r.id,
     studentId: r.student_id,
-    date: r.date instanceof Date ? r.date.toISOString().slice(0, 10) : r.date,
+    date: toDateStr(r.date),
     status: r.status,
   }
 }
@@ -83,38 +93,81 @@ function mapDoc(r: any): StudentDocument {
     id: r.id,
     studentId: r.student_id,
     name: r.name,
-    url: r.url,
-    uploadedAt: r.uploaded_at instanceof Date ? r.uploaded_at.toISOString() : r.uploaded_at,
+    type: "Certificate",
+    uploadedAt: r.uploaded_at instanceof Date ? r.uploaded_at.toISOString() : String(r.uploaded_at),
+    size: "—",
   }
 }
 
 /* ---------- Students ---------- */
 
+const STUDENT_SELECT = `
+  s.*,
+  COALESCE((SELECT SUM(p.amount) FROM payments p WHERE p.student_id = s.id), 0)::float AS paid_fees
+`
+
 export async function getAllStudents(): Promise<Student[]> {
-  const rows = await sql`SELECT * FROM students ORDER BY created_at DESC`
+  const rows = await sql`
+    SELECT s.*, COALESCE((SELECT SUM(p.amount) FROM payments p WHERE p.student_id = s.id), 0)::float AS paid_fees
+    FROM students s
+    ORDER BY s.created_at DESC
+  `
   return rows.map(mapStudent)
 }
 
 export async function getStudentById(id: string): Promise<Student | null> {
-  const rows = await sql`SELECT * FROM students WHERE id = ${id} LIMIT 1`
+  const rows = await sql`
+    SELECT s.*, COALESCE((SELECT SUM(p.amount) FROM payments p WHERE p.student_id = s.id), 0)::float AS paid_fees
+    FROM students s
+    WHERE s.id = ${id}
+    LIMIT 1
+  `
   return rows[0] ? mapStudent(rows[0]) : null
 }
 
 /* ---------- Payments ---------- */
 
 export async function getAllPayments(): Promise<Payment[]> {
-  const rows = await sql`SELECT * FROM payments ORDER BY date DESC, created_at DESC`
+  const rows = await sql`
+    SELECT p.*, s.name AS student_name
+    FROM payments p
+    LEFT JOIN students s ON p.student_id = s.id
+    ORDER BY p.date DESC, p.created_at DESC
+  `
   return rows.map(mapPayment)
 }
 
 export async function getPaymentsByStudent(studentId: string): Promise<Payment[]> {
-  const rows = await sql`SELECT * FROM payments WHERE student_id = ${studentId} ORDER BY date DESC`
+  const rows = await sql`
+    SELECT p.*, s.name AS student_name
+    FROM payments p
+    LEFT JOIN students s ON p.student_id = s.id
+    WHERE p.student_id = ${studentId}
+    ORDER BY p.date DESC
+  `
   return rows.map(mapPayment)
 }
 
 export async function getRecentPayments(limit = 10): Promise<Payment[]> {
-  const rows = await sql`SELECT * FROM payments ORDER BY date DESC, created_at DESC LIMIT ${limit}`
+  const rows = await sql`
+    SELECT p.*, s.name AS student_name
+    FROM payments p
+    LEFT JOIN students s ON p.student_id = s.id
+    ORDER BY p.date DESC, p.created_at DESC
+    LIMIT ${limit}
+  `
   return rows.map(mapPayment)
+}
+
+export async function getPaymentById(id: string): Promise<Payment | null> {
+  const rows = await sql`
+    SELECT p.*, s.name AS student_name
+    FROM payments p
+    LEFT JOIN students s ON p.student_id = s.id
+    WHERE p.id = ${id}
+    LIMIT 1
+  `
+  return rows[0] ? mapPayment(rows[0]) : null
 }
 
 /* ---------- Expenses ---------- */
@@ -133,12 +186,12 @@ export async function getAllInquiries(): Promise<Inquiry[]> {
 
 /* ---------- Attendance ---------- */
 
-export async function getAttendanceByDate(date: string): Promise<Attendance[]> {
+export async function getAttendanceByDate(date: string): Promise<AttendanceRecord[]> {
   const rows = await sql`SELECT * FROM attendance WHERE date = ${date}`
   return rows.map(mapAttendance)
 }
 
-export async function getAttendanceByStudent(studentId: string): Promise<Attendance[]> {
+export async function getAttendanceByStudent(studentId: string): Promise<AttendanceRecord[]> {
   const rows =
     await sql`SELECT * FROM attendance WHERE student_id = ${studentId} ORDER BY date DESC`
   return rows.map(mapAttendance)
@@ -163,49 +216,40 @@ export type DashboardKpis = {
   pendingFees: number
   newInquiries: number
   monthRevenue: number
+  todayCollection: number
 }
 
 export async function getDashboardKpis(): Promise<DashboardKpis> {
-  const [students, revenue, expenses, monthRev, pending, inq] = await Promise.all([
+  const [students, revenue, expenses, monthRev, today, inq, billed] = await Promise.all([
     sql`SELECT COUNT(*)::int AS total, COUNT(*) FILTER (WHERE status = 'active')::int AS active FROM students`,
     sql`SELECT COALESCE(SUM(amount),0)::float AS sum FROM payments`,
     sql`SELECT COALESCE(SUM(amount),0)::float AS sum FROM expenses`,
     sql`SELECT COALESCE(SUM(amount),0)::float AS sum FROM payments WHERE date >= date_trunc('month', CURRENT_DATE)`,
-    sql`SELECT COALESCE(SUM(s.total_fees) - COALESCE((SELECT SUM(p.amount) FROM payments p WHERE p.student_id = s.id), 0), 0)::float AS pending
-        FROM students s WHERE s.status <> 'dropped'`,
+    sql`SELECT COALESCE(SUM(amount),0)::float AS sum FROM payments WHERE date = CURRENT_DATE`,
     sql`SELECT COUNT(*)::int AS c FROM inquiries WHERE status = 'new'`,
+    sql`SELECT COALESCE(SUM(total_fees),0)::float AS billed FROM students WHERE status <> 'dropped'`,
   ])
 
-  const totalStudents = students[0]?.total ?? 0
-  const activeStudents = students[0]?.active ?? 0
   const totalRevenue = Number(revenue[0]?.sum ?? 0)
   const totalExpenses = Number(expenses[0]?.sum ?? 0)
-  const monthRevenue = Number(monthRev[0]?.sum ?? 0)
-
-  // pending uses a per-row computation; fallback simple
-  const pendingRows =
-    await sql`SELECT COALESCE(SUM(s.total_fees),0)::float AS billed,
-                     COALESCE((SELECT SUM(amount) FROM payments),0)::float AS paid
-              FROM students s WHERE s.status <> 'dropped'`
-  const billed = Number(pendingRows[0]?.billed ?? 0)
-  const paid = Number(pendingRows[0]?.paid ?? 0)
-  const pendingFees = Math.max(billed - paid, 0)
+  const billedAmt = Number(billed[0]?.billed ?? 0)
 
   return {
-    totalStudents,
-    activeStudents,
+    totalStudents: students[0]?.total ?? 0,
+    activeStudents: students[0]?.active ?? 0,
     totalRevenue,
     totalExpenses,
     netProfit: totalRevenue - totalExpenses,
-    pendingFees,
+    pendingFees: Math.max(billedAmt - totalRevenue, 0),
     newInquiries: inq[0]?.c ?? 0,
-    monthRevenue,
+    monthRevenue: Number(monthRev[0]?.sum ?? 0),
+    todayCollection: Number(today[0]?.sum ?? 0),
   }
 }
 
 export type MonthlySnapshot = {
-  month: string // 'YYYY-MM'
-  label: string // 'Jan 26'
+  month: string
+  label: string
   revenue: number
   expenses: number
   profit: number
@@ -213,24 +257,23 @@ export type MonthlySnapshot = {
 }
 
 export async function getMonthlySnapshots(months = 12): Promise<MonthlySnapshot[]> {
-  const rev = await sql`
-    SELECT to_char(date_trunc('month', date), 'YYYY-MM') AS month,
-           COALESCE(SUM(amount),0)::float AS revenue
-    FROM payments
-    WHERE date >= (CURRENT_DATE - (${months}::int || ' months')::interval)
-    GROUP BY 1`
-  const exp = await sql`
-    SELECT to_char(date_trunc('month', date), 'YYYY-MM') AS month,
-           COALESCE(SUM(amount),0)::float AS expenses
-    FROM expenses
-    WHERE date >= (CURRENT_DATE - (${months}::int || ' months')::interval)
-    GROUP BY 1`
-  const stu = await sql`
-    SELECT to_char(date_trunc('month', joining_date), 'YYYY-MM') AS month,
-           COUNT(*)::int AS new_students
-    FROM students
-    WHERE joining_date >= (CURRENT_DATE - (${months}::int || ' months')::interval)
-    GROUP BY 1`
+  const [rev, exp, stu] = await Promise.all([
+    sql`SELECT to_char(date_trunc('month', date), 'YYYY-MM') AS month,
+                COALESCE(SUM(amount),0)::float AS revenue
+         FROM payments
+         WHERE date >= (CURRENT_DATE - (${months}::int || ' months')::interval)
+         GROUP BY 1`,
+    sql`SELECT to_char(date_trunc('month', date), 'YYYY-MM') AS month,
+                COALESCE(SUM(amount),0)::float AS expenses
+         FROM expenses
+         WHERE date >= (CURRENT_DATE - (${months}::int || ' months')::interval)
+         GROUP BY 1`,
+    sql`SELECT to_char(date_trunc('month', joining_date), 'YYYY-MM') AS month,
+                COUNT(*)::int AS new_students
+         FROM students
+         WHERE joining_date >= (CURRENT_DATE - (${months}::int || ' months')::interval)
+         GROUP BY 1`,
+  ])
 
   const map = new Map<string, { revenue: number; expenses: number; newStudents: number }>()
   const ensure = (k: string) => {
@@ -241,7 +284,6 @@ export async function getMonthlySnapshots(months = 12): Promise<MonthlySnapshot[
   exp.forEach((r: any) => (ensure(r.month).expenses = Number(r.expenses)))
   stu.forEach((r: any) => (ensure(r.month).newStudents = Number(r.new_students)))
 
-  // Build last N months in order
   const out: MonthlySnapshot[] = []
   const now = new Date()
   for (let i = months - 1; i >= 0; i--) {
@@ -266,7 +308,8 @@ export async function getExpenseBreakdown(): Promise<{ category: string; amount:
     SELECT category, COALESCE(SUM(amount),0)::float AS amount
     FROM expenses
     GROUP BY category
-    ORDER BY amount DESC`
+    ORDER BY amount DESC
+  `
   return rows.map((r: any) => ({ category: r.category, amount: Number(r.amount) }))
 }
 
@@ -276,13 +319,16 @@ export async function getBatchPerformance(): Promise<
   const rows = await sql`
     SELECT s.batch,
            COUNT(*)::int AS students,
-           COALESCE((SELECT SUM(p.amount) FROM payments p
-                     JOIN students s2 ON s2.id = p.student_id
-                     WHERE s2.batch = s.batch), 0)::float AS revenue
+           COALESCE((
+             SELECT SUM(p.amount) FROM payments p
+             JOIN students s2 ON s2.id = p.student_id
+             WHERE s2.batch = s.batch
+           ), 0)::float AS revenue
     FROM students s
     GROUP BY s.batch
     ORDER BY s.batch DESC
-    LIMIT 8`
+    LIMIT 8
+  `
   return rows.map((r: any) => ({
     batch: r.batch,
     students: Number(r.students),
@@ -290,7 +336,7 @@ export async function getBatchPerformance(): Promise<
   }))
 }
 
-/* ---------- Helpers ---------- */
+/* ---------- ID generators ---------- */
 
 export async function nextReceiptNumber(): Promise<string> {
   const rows = await sql`SELECT COUNT(*)::int AS c FROM payments`
@@ -323,6 +369,6 @@ export async function nextInquiryId(): Promise<string> {
   return `INQ${String(n).padStart(4, "0")}`
 }
 
-export async function nextAttendanceId(): Promise<string> {
+export function nextAttendanceId(): string {
   return `ATT${Date.now()}${Math.floor(Math.random() * 1000)}`
 }

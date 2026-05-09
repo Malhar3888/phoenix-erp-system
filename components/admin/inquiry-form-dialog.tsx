@@ -1,7 +1,7 @@
 "use client"
 
-import { useState } from "react"
-import { Plus } from "lucide-react"
+import { useState, useTransition } from "react"
+import { Loader2, Plus } from "lucide-react"
 import {
   Dialog,
   DialogContent,
@@ -22,39 +22,49 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import { COURSES } from "@/lib/mock-data"
-import type { Inquiry } from "@/lib/types"
+import { COURSES, INQUIRY_SOURCES } from "@/lib/mock-data"
+import { createInquiry } from "@/lib/actions"
+import { toast } from "sonner"
 
-type Props = {
-  onSubmit?: (i: Inquiry) => void
-}
-
-export function InquiryFormDialog({ onSubmit }: Props) {
+export function InquiryFormDialog() {
   const [open, setOpen] = useState(false)
   const [name, setName] = useState("")
   const [mobile, setMobile] = useState("")
+  const [email, setEmail] = useState("")
   const [course, setCourse] = useState<string>(COURSES[0])
+  const [source, setSource] = useState<string>(INQUIRY_SOURCES[0])
   const [followUpDate, setFollowUpDate] = useState(
     new Date(Date.now() + 3 * 86400000).toISOString().slice(0, 10),
   )
   const [notes, setNotes] = useState("")
+  const [pending, startTransition] = useTransition()
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
-    const inquiry: Inquiry = {
-      id: `INQ-${Math.floor(Math.random() * 9000) + 1000}`,
-      name,
-      mobile,
-      course,
-      followUpDate,
-      status: "new",
-      notes: notes || undefined,
-    }
-    onSubmit?.(inquiry)
-    setOpen(false)
-    setName("")
-    setMobile("")
-    setNotes("")
+    startTransition(async () => {
+      try {
+        await createInquiry({
+          name,
+          mobile,
+          email: email || undefined,
+          course,
+          source,
+          status: "new",
+          date: new Date().toISOString().slice(0, 10),
+          followUpDate,
+          notes: notes || undefined,
+        })
+        toast.success("Inquiry logged")
+        setOpen(false)
+        setName("")
+        setMobile("")
+        setEmail("")
+        setNotes("")
+      } catch (err) {
+        console.log("[v0] createInquiry failed:", err)
+        toast.error("Could not save inquiry.")
+      }
+    })
   }
 
   return (
@@ -94,13 +104,12 @@ export function InquiryFormDialog({ onSubmit }: Props) {
               />
             </div>
             <div className="grid gap-2">
-              <Label htmlFor="ifu">Follow-up</Label>
+              <Label htmlFor="iemail">Email (optional)</Label>
               <Input
-                id="ifu"
-                type="date"
-                value={followUpDate}
-                onChange={(e) => setFollowUpDate(e.target.value)}
-                required
+                id="iemail"
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
               />
             </div>
           </div>
@@ -119,6 +128,33 @@ export function InquiryFormDialog({ onSubmit }: Props) {
               </SelectContent>
             </Select>
           </div>
+          <div className="grid grid-cols-2 gap-4">
+            <div className="grid gap-2">
+              <Label htmlFor="isource">Source</Label>
+              <Select value={source} onValueChange={setSource}>
+                <SelectTrigger id="isource">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {INQUIRY_SOURCES.map((s) => (
+                    <SelectItem key={s} value={s}>
+                      {s}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="ifu">Follow-up</Label>
+              <Input
+                id="ifu"
+                type="date"
+                value={followUpDate}
+                onChange={(e) => setFollowUpDate(e.target.value)}
+                required
+              />
+            </div>
+          </div>
           <div className="grid gap-2">
             <Label htmlFor="inotes">Notes</Label>
             <Textarea
@@ -130,10 +166,13 @@ export function InquiryFormDialog({ onSubmit }: Props) {
             />
           </div>
           <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => setOpen(false)}>
+            <Button type="button" variant="outline" onClick={() => setOpen(false)} disabled={pending}>
               Cancel
             </Button>
-            <Button type="submit">Save Inquiry</Button>
+            <Button type="submit" disabled={pending}>
+              {pending && <Loader2 className="animate-spin" />}
+              Save Inquiry
+            </Button>
           </DialogFooter>
         </form>
       </DialogContent>

@@ -108,6 +108,7 @@ export async function deletePayment(id: string) {
 /* ---------------- EXPENSES ---------------- */
 
 export async function createExpense(input: {
+  title: string
   category: string
   amount: number
   date: string
@@ -116,10 +117,12 @@ export async function createExpense(input: {
 }) {
   const id = await nextExpenseId()
   await sql`
-    INSERT INTO expenses (id, category, amount, date, note, paid_to)
-    VALUES (${id}, ${input.category}, ${input.amount}, ${input.date}, ${input.note ?? null}, ${input.paidTo ?? null})`
+    INSERT INTO expenses (id, title, category, amount, date, note, paid_to)
+    VALUES (${id}, ${input.title}, ${input.category}, ${input.amount}, ${input.date},
+            ${input.note ?? null}, ${input.paidTo ?? null})`
   revalidatePath("/expenses")
   revalidatePath("/dashboard")
+  revalidatePath("/reports")
   return { id }
 }
 
@@ -137,15 +140,17 @@ export async function createInquiry(input: {
   email?: string
   course: string
   source: string
-  status?: "new" | "contacted" | "enrolled" | "lost"
+  status?: "new" | "contacted" | "converted" | "lost"
   date: string
-  note?: string
+  followUpDate?: string
+  notes?: string
 }) {
   const id = await nextInquiryId()
   await sql`
-    INSERT INTO inquiries (id, name, mobile, email, course, source, status, note, date)
+    INSERT INTO inquiries (id, name, mobile, email, course, source, status, notes, date, follow_up_date)
     VALUES (${id}, ${input.name}, ${input.mobile}, ${input.email ?? null}, ${input.course},
-            ${input.source}, ${input.status ?? "new"}, ${input.note ?? null}, ${input.date})`
+            ${input.source}, ${input.status ?? "new"}, ${input.notes ?? null}, ${input.date},
+            ${input.followUpDate ?? null})`
   revalidatePath("/inquiries")
   revalidatePath("/dashboard")
   return { id }
@@ -153,7 +158,7 @@ export async function createInquiry(input: {
 
 export async function updateInquiryStatus(
   id: string,
-  status: "new" | "contacted" | "enrolled" | "lost",
+  status: "new" | "contacted" | "converted" | "lost",
 ) {
   await sql`UPDATE inquiries SET status = ${status} WHERE id = ${id}`
   revalidatePath("/inquiries")
@@ -173,7 +178,7 @@ export async function markAttendance(input: {
   date: string
   status: "present" | "absent" | "late"
 }) {
-  const id = await nextAttendanceId()
+  const id = nextAttendanceId()
   await sql`
     INSERT INTO attendance (id, student_id, date, status)
     VALUES (${id}, ${input.studentId}, ${input.date}, ${input.status})

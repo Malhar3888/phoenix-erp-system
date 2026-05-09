@@ -7,14 +7,14 @@ import {
   ChartTooltipContent,
   type ChartConfig,
 } from "@/components/ui/chart"
-import { monthlyRevenue } from "@/lib/mock-data"
 
 const chartConfig = {
   profit: { label: "Profit", color: "var(--chart-1)" },
 } satisfies ChartConfig
 
-export function ProfitChart() {
-  const data = monthlyRevenue()
+type Row = { month: string; profit: number }
+
+export function ProfitChart({ data = [] }: { data?: Row[] }) {
   return (
     <ChartContainer config={chartConfig} className="aspect-[16/9] w-full">
       <ResponsiveContainer>
@@ -27,7 +27,7 @@ export function ProfitChart() {
             content={
               <ChartTooltipContent
                 indicator="dot"
-                formatter={(value) => [`₹ ${Number(value).toLocaleString("en-IN")} `, "Profit"]}
+                formatter={(value) => [`INR ${Number(value).toLocaleString("en-IN")} `, "Profit"]}
               />
             }
           />

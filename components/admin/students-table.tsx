@@ -22,8 +22,9 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import { Button } from "@/components/ui/button"
-import { BATCHES, COURSES, students as ALL_STUDENTS } from "@/lib/mock-data"
+import { BATCHES, COURSES } from "@/lib/mock-data"
 import { formatINR, initialsFrom } from "@/lib/format"
+import type { Student } from "@/lib/types"
 
 const STATUS_STYLES: Record<string, string> = {
   active: "bg-primary/15 text-primary border-primary/30",
@@ -31,7 +32,7 @@ const STATUS_STYLES: Record<string, string> = {
   dropped: "bg-destructive/15 text-[oklch(0.78_0.18_25)] border-destructive/40",
 }
 
-export function StudentsTable() {
+export function StudentsTable({ students }: { students: Student[] }) {
   const [query, setQuery] = useState("")
   const [course, setCourse] = useState<string>("all")
   const [batch, setBatch] = useState<string>("all")
@@ -39,7 +40,7 @@ export function StudentsTable() {
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase()
-    return ALL_STUDENTS.filter((s) => {
+    return students.filter((s) => {
       if (course !== "all" && s.course !== course) return false
       if (batch !== "all" && s.batch !== batch) return false
       if (status !== "all" && s.status !== status) return false
@@ -47,7 +48,7 @@ export function StudentsTable() {
         return false
       return true
     })
-  }, [query, course, batch, status])
+  }, [students, query, course, batch, status])
 
   return (
     <div className="space-y-4">
@@ -114,7 +115,8 @@ export function StudentsTable() {
           </TableHeader>
           <TableBody>
             {filtered.map((s) => {
-              const paidPct = Math.round((s.paidFees / s.totalFees) * 100)
+              const paidPct =
+                s.totalFees > 0 ? Math.round((s.paidFees / s.totalFees) * 100) : 0
               return (
                 <TableRow key={s.id} className="group">
                   <TableCell>
@@ -175,7 +177,9 @@ export function StudentsTable() {
             {filtered.length === 0 && (
               <TableRow>
                 <TableCell colSpan={6} className="py-12 text-center text-sm text-muted-foreground">
-                  No students match your filters.
+                  {students.length === 0
+                    ? "No students yet. Click 'Add Student' to enroll your first one."
+                    : "No students match your filters."}
                 </TableCell>
               </TableRow>
             )}
@@ -186,7 +190,7 @@ export function StudentsTable() {
       <div className="flex items-center justify-between text-xs text-muted-foreground">
         <span>
           Showing <strong className="text-foreground">{filtered.length}</strong> of{" "}
-          <strong className="text-foreground">{ALL_STUDENTS.length}</strong> students
+          <strong className="text-foreground">{students.length}</strong> students
         </span>
       </div>
     </div>

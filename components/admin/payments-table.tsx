@@ -22,7 +22,6 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import { ReceiptDialog } from "@/components/admin/receipt-dialog"
-import { getStudentById, payments } from "@/lib/mock-data"
 import { formatDate, formatINR, initialsFrom } from "@/lib/format"
 import type { Payment, Student } from "@/lib/types"
 import { whatsappShareUrl } from "@/lib/receipt-pdf"
@@ -36,32 +35,39 @@ const modeColor: Record<string, string> = {
   "Bank Transfer": "bg-chart-5/15 text-[oklch(0.85_0.1_90)]",
 }
 
-export function PaymentsTable() {
+export function PaymentsTable({
+  payments,
+  students,
+}: {
+  payments: Payment[]
+  students: Student[]
+}) {
   const [query, setQuery] = useState("")
   const [mode, setMode] = useState<string>("all")
   const [active, setActive] = useState<{ payment: Payment; student: Student } | null>(null)
   const [open, setOpen] = useState(false)
 
+  const studentMap = useMemo(() => new Map(students.map((s) => [s.id, s])), [students])
+
   const rows = useMemo(() => {
-    const sorted = [...payments].sort((a, b) => (a.date < b.date ? 1 : -1))
-    return sorted.filter((p) => {
+    return payments.filter((p) => {
       if (mode !== "all" && p.mode !== mode) return false
       if (!query.trim()) return true
-      const s = getStudentById(p.studentId)
+      const s = studentMap.get(p.studentId)
       const haystack = `${s?.name ?? ""} ${p.receiptNo} ${p.studentId}`.toLowerCase()
       return haystack.includes(query.toLowerCase())
     })
-  }, [query, mode])
+  }, [payments, query, mode, studentMap])
 
   function viewReceipt(p: Payment) {
-    const s = getStudentById(p.studentId)
+    const s = studentMap.get(p.studentId)
     if (!s) return
     setActive({ payment: p, student: s })
     setOpen(true)
   }
 
   function shareWhatsApp(p: Payment) {
-    const s = getStudentById(p.studentId)
+    const s = studentMap.get(p.studentId)
     if (!s) return
     window.open(whatsappShareUrl(p, s), "_blank", "noopener,noreferrer")
   }
@@ -106,7 +112,7 @@ export function PaymentsTable() {
           </TableHeader>
           <TableBody>
             {rows.map((p) => {
-              const s = getStudentById(p.studentId)
+              const s = studentMap.get(p.studentId)
               if (!s) return null
               return (
                 <TableRow key={p.id}>
@@ -157,7 +163,9 @@ export function PaymentsTable() {
             {rows.length === 0 && (
               <TableRow>
                 <TableCell colSpan={6} className="py-12 text-center text-sm text-muted-foreground">
-                  No payments match.
+                  {payments.length === 0
+                    ? "No payments recorded yet. Click 'Record Payment' to add the first one."
+                    : "No payments match your filters."}
                 </TableCell>
               </TableRow>
             )}

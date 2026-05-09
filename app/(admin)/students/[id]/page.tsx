@@ -21,13 +21,14 @@ import { StudentPaymentsTable } from "@/components/admin/student-payments-table"
 import { StudentAttendance } from "@/components/admin/student-attendance"
 import { StudentDocuments } from "@/components/admin/student-documents"
 import {
-  attendancePercentage,
   getAttendanceByStudent,
   getDocumentsByStudent,
   getPaymentsByStudent,
   getStudentById,
-} from "@/lib/mock-data"
+} from "@/lib/queries"
 import { formatDate, formatINR, initialsFrom } from "@/lib/format"
+
+export const dynamic = "force-dynamic"
 
 export default async function StudentProfilePage({
   params,
@@ -35,19 +36,22 @@ export default async function StudentProfilePage({
   params: Promise<{ id: string }>
 }) {
   const { id } = await params
-  const student = getStudentById(id)
+  const student = await getStudentById(id)
   if (!student) notFound()
 
-  const payments = getPaymentsByStudent(student.id)
-  const attendance = getAttendanceByStudent(student.id)
-  const documents = getDocumentsByStudent(student.id)
+  const [payments, attendance, documents] = await Promise.all([
+    getPaymentsByStudent(student.id),
+    getAttendanceByStudent(student.id),
+    getDocumentsByStudent(student.id),
+  ])
 
-  const paidPct = Math.round((student.paidFees / student.totalFees) * 100)
-  const attPct = attendancePercentage(student.id)
+  const paidPct =
+    student.totalFees > 0 ? Math.round((student.paidFees / student.totalFees) * 100) : 0
   const presentDays = attendance.filter(
     (a) => a.status === "present" || a.status === "late",
   ).length
   const absentDays = attendance.filter((a) => a.status === "absent").length
+  const attPct = attendance.length > 0 ? Math.round((presentDays / attendance.length) * 100) : 0
 
   return (
     <div className="space-y-6">
@@ -101,9 +105,11 @@ export default async function StudentProfilePage({
                   <span className="inline-flex items-center gap-1.5">
                     <Mail className="size-3.5" /> {student.email}
                   </span>
-                  <span className="inline-flex items-center gap-1.5">
-                    <MapPin className="size-3.5" /> {student.address}
-                  </span>
+                  {student.address && (
+                    <span className="inline-flex items-center gap-1.5">
+                      <MapPin className="size-3.5" /> {student.address}
+                    </span>
+                  )}
                 </div>
               </div>
             </div>
@@ -209,30 +215,26 @@ export default async function StudentProfilePage({
         <Card className="glass">
           <CardHeader className="pb-2">
             <CardDescription>Performance</CardDescription>
-            <CardTitle className="text-2xl">B+ Grade</CardTitle>
+            <CardTitle className="text-2xl">In Progress</CardTitle>
           </CardHeader>
           <CardContent className="space-y-3 pt-0 text-sm">
             <div className="space-y-1">
               <div className="flex justify-between text-xs text-muted-foreground">
                 <span>Course Progress</span>
-                <span className="font-semibold text-foreground">68%</span>
+                <span className="font-semibold text-foreground">{paidPct}%</span>
               </div>
-              <Progress value={68} className="h-1.5" />
+              <Progress value={paidPct} className="h-1.5" />
             </div>
             <div className="space-y-1">
               <div className="flex justify-between text-xs text-muted-foreground">
-                <span>Assignments</span>
-                <span className="font-semibold text-foreground">12 / 15</span>
+                <span>Attendance</span>
+                <span className="font-semibold text-foreground">{attPct}%</span>
               </div>
-              <Progress value={(12 / 15) * 100} className="h-1.5" />
+              <Progress value={attPct} className="h-1.5" />
             </div>
-            <div className="space-y-1">
-              <div className="flex justify-between text-xs text-muted-foreground">
-                <span>Avg Test Score</span>
-                <span className="font-semibold text-foreground">82%</span>
-              </div>
-              <Progress value={82} className="h-1.5" />
-            </div>
+            <p className="text-xs text-muted-foreground">
+              Performance scoring coming soon — based on attendance and assessments.
+            </p>
           </CardContent>
         </Card>
       </div>
