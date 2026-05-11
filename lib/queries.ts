@@ -507,3 +507,20 @@ export async function getCourseById(id: string): Promise<Course | null> {
     updatedAt: new Date(r.updated_at).toISOString(),
   }
 }
+
+export async function getCourseSummary(): Promise<{ total: number; active: number; inactive: number }> {
+  const sql = getSql()
+  const rows = await sql`
+    SELECT 
+      COUNT(*)::int AS total,
+      COUNT(CASE WHEN status = 'Active' THEN 1 END)::int AS active,
+      COUNT(CASE WHEN status = 'Inactive' THEN 1 END)::int AS inactive
+    FROM courses
+  `
+  const r = rows[0]
+  return {
+    total: r?.total ?? 0,
+    active: r?.active ?? 0,
+    inactive: r?.inactive ?? 0,
+  }
+}

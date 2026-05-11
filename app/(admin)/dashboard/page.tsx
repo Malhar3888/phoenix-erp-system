@@ -20,6 +20,7 @@ import { StudentGrowthChart } from "@/components/admin/charts/student-growth-cha
 import { ExpenseChart } from "@/components/admin/charts/expense-chart"
 import { BatchPerformanceChart } from "@/components/admin/charts/batch-performance"
 import { RecentPayments } from "@/components/admin/recent-payments"
+import { CoursesSummary } from "@/components/admin/courses-summary"
 import {
   getAllStudents,
   getBatchPerformance,
@@ -133,7 +134,7 @@ export default async function DashboardPage() {
         />
       </div>
 
-      <div className="grid gap-4 lg:grid-cols-3">
+      <div className="grid gap-4 lg:grid-cols-4">
         <Card className="glass lg:col-span-2">
           <CardHeader className="flex flex-row items-start justify-between gap-3 space-y-0">
             <div>
@@ -158,6 +159,8 @@ export default async function DashboardPage() {
             <RecentPayments payments={recent} students={students} />
           </CardContent>
         </Card>
+
+        <CoursesSummary />
       </div>
 
       <div className="grid gap-4 lg:grid-cols-3">

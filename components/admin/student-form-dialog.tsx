@@ -22,10 +22,10 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
-import { BATCHES, COURSES } from "@/lib/mock-data"
+import { BATCHES } from "@/lib/mock-data"
 import { toast } from "sonner"
 import { createStudent, updateStudent } from "@/lib/actions"
-import type { Student, StudentStatus } from "@/lib/types"
+import type { Student, StudentStatus, Course } from "@/lib/types"
 
 type Props = {
   /** If provided, the dialog is in edit mode. */
@@ -35,6 +35,8 @@ type Props = {
   /** Controlled open state (optional). */
   open?: boolean
   onOpenChange?: (open: boolean) => void
+  /** Available courses from server (pass from parent) */
+  courses?: Course[]
 }
 
 export function StudentFormDialog({
@@ -42,16 +44,28 @@ export function StudentFormDialog({
   trigger,
   open: openProp,
   onOpenChange,
+  courses: initialCourses = [],
 }: Props) {
   const isEdit = !!student
   const [uncontrolledOpen, setUncontrolledOpen] = useState(false)
   const open = openProp ?? uncontrolledOpen
   const setOpen = onOpenChange ?? setUncontrolledOpen
 
-  const [course, setCourse] = useState<string>(student?.course ?? COURSES[0])
+  const [courses, setCourses] = useState<Course[]>(initialCourses)
+  const [course, setCourse] = useState<string>(student?.course ?? (initialCourses[0]?.name || ""))
   const [batch, setBatch] = useState<string>(student?.batch ?? BATCHES[0])
   const [status, setStatus] = useState<StudentStatus>(student?.status ?? "active")
   const [pending, startTransition] = useTransition()
+
+  // Fetch courses on mount if not provided
+  useEffect(() => {
+    if (!courses.length && open) {
+      fetch("/api/courses")
+        .then((res) => res.json())
+        .then((data) => setCourses(data.courses || []))
+        .catch(() => toast.error("Failed to load courses"))
+    }
+  }, [open, courses.length])
 
   // Reset internal selects whenever the dialog opens for a new student.
   useEffect(() => {
@@ -171,11 +185,19 @@ export function StudentFormDialog({
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                {COURSES.map((c) => (
-                  <SelectItem key={c} value={c}>
-                    {c}
+                {courses.length > 0 ? (
+                  courses
+                    .filter((c) => c.status === "Active")
+                    .map((c) => (
+                      <SelectItem key={c.id} value={c.name}>
+                        {c.name}
+                      </SelectItem>
+                    ))
+                ) : (
+                  <SelectItem disabled value="">
+                    No active courses
                   </SelectItem>
-                ))}
+                )}
               </SelectContent>
             </Select>
           </div>
