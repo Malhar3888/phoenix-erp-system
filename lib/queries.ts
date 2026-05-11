@@ -1,5 +1,5 @@
 import "server-only"
-import { sql } from "@/lib/db"
+import { getSql } from "@/lib/db"
 import type {
   Student,
   Payment,
@@ -101,12 +101,8 @@ function mapDoc(r: any): StudentDocument {
 
 /* ---------- Students ---------- */
 
-const STUDENT_SELECT = `
-  s.*,
-  COALESCE((SELECT SUM(p.amount) FROM payments p WHERE p.student_id = s.id), 0)::float AS paid_fees
-`
-
 export async function getAllStudents(): Promise<Student[]> {
+  const sql = getSql()
   const rows = await sql`
     SELECT s.*, COALESCE((SELECT SUM(p.amount) FROM payments p WHERE p.student_id = s.id), 0)::float AS paid_fees
     FROM students s
@@ -116,6 +112,7 @@ export async function getAllStudents(): Promise<Student[]> {
 }
 
 export async function getStudentById(id: string): Promise<Student | null> {
+  const sql = getSql()
   const rows = await sql`
     SELECT s.*, COALESCE((SELECT SUM(p.amount) FROM payments p WHERE p.student_id = s.id), 0)::float AS paid_fees
     FROM students s
@@ -128,6 +125,7 @@ export async function getStudentById(id: string): Promise<Student | null> {
 /* ---------- Payments ---------- */
 
 export async function getAllPayments(): Promise<Payment[]> {
+  const sql = getSql()
   const rows = await sql`
     SELECT p.*, s.name AS student_name
     FROM payments p
@@ -138,6 +136,7 @@ export async function getAllPayments(): Promise<Payment[]> {
 }
 
 export async function getPaymentsByStudent(studentId: string): Promise<Payment[]> {
+  const sql = getSql()
   const rows = await sql`
     SELECT p.*, s.name AS student_name
     FROM payments p
@@ -149,6 +148,7 @@ export async function getPaymentsByStudent(studentId: string): Promise<Payment[]
 }
 
 export async function getRecentPayments(limit = 10): Promise<Payment[]> {
+  const sql = getSql()
   const rows = await sql`
     SELECT p.*, s.name AS student_name
     FROM payments p
@@ -160,6 +160,7 @@ export async function getRecentPayments(limit = 10): Promise<Payment[]> {
 }
 
 export async function getPaymentById(id: string): Promise<Payment | null> {
+  const sql = getSql()
   const rows = await sql`
     SELECT p.*, s.name AS student_name
     FROM payments p
@@ -173,6 +174,7 @@ export async function getPaymentById(id: string): Promise<Payment | null> {
 /* ---------- Expenses ---------- */
 
 export async function getAllExpenses(): Promise<Expense[]> {
+  const sql = getSql()
   const rows = await sql`SELECT * FROM expenses ORDER BY date DESC, created_at DESC`
   return rows.map(mapExpense)
 }
@@ -180,6 +182,7 @@ export async function getAllExpenses(): Promise<Expense[]> {
 /* ---------- Inquiries ---------- */
 
 export async function getAllInquiries(): Promise<Inquiry[]> {
+  const sql = getSql()
   const rows = await sql`SELECT * FROM inquiries ORDER BY date DESC, created_at DESC`
   return rows.map(mapInquiry)
 }
@@ -187,11 +190,13 @@ export async function getAllInquiries(): Promise<Inquiry[]> {
 /* ---------- Attendance ---------- */
 
 export async function getAttendanceByDate(date: string): Promise<AttendanceRecord[]> {
+  const sql = getSql()
   const rows = await sql`SELECT * FROM attendance WHERE date = ${date}`
   return rows.map(mapAttendance)
 }
 
 export async function getAttendanceByStudent(studentId: string): Promise<AttendanceRecord[]> {
+  const sql = getSql()
   const rows =
     await sql`SELECT * FROM attendance WHERE student_id = ${studentId} ORDER BY date DESC`
   return rows.map(mapAttendance)
@@ -200,6 +205,7 @@ export async function getAttendanceByStudent(studentId: string): Promise<Attenda
 /* ---------- Documents ---------- */
 
 export async function getDocumentsByStudent(studentId: string): Promise<StudentDocument[]> {
+  const sql = getSql()
   const rows =
     await sql`SELECT * FROM student_documents WHERE student_id = ${studentId} ORDER BY uploaded_at DESC`
   return rows.map(mapDoc)
@@ -220,6 +226,7 @@ export type DashboardKpis = {
 }
 
 export async function getDashboardKpis(): Promise<DashboardKpis> {
+  const sql = getSql()
   const [students, revenue, expenses, monthRev, today, inq, billed] = await Promise.all([
     sql`SELECT COUNT(*)::int AS total, COUNT(*) FILTER (WHERE status = 'active')::int AS active FROM students`,
     sql`SELECT COALESCE(SUM(amount),0)::float AS sum FROM payments`,
@@ -257,6 +264,7 @@ export type MonthlySnapshot = {
 }
 
 export async function getMonthlySnapshots(months = 12): Promise<MonthlySnapshot[]> {
+  const sql = getSql()
   const [rev, exp, stu] = await Promise.all([
     sql`SELECT to_char(date_trunc('month', date), 'YYYY-MM') AS month,
                 COALESCE(SUM(amount),0)::float AS revenue
@@ -304,6 +312,7 @@ export async function getMonthlySnapshots(months = 12): Promise<MonthlySnapshot[
 }
 
 export async function getExpenseBreakdown(): Promise<{ category: string; amount: number }[]> {
+  const sql = getSql()
   const rows = await sql`
     SELECT category, COALESCE(SUM(amount),0)::float AS amount
     FROM expenses
@@ -316,6 +325,7 @@ export async function getExpenseBreakdown(): Promise<{ category: string; amount:
 export async function getBatchPerformance(): Promise<
   { batch: string; students: number; revenue: number }[]
 > {
+  const sql = getSql()
   const rows = await sql`
     SELECT s.batch,
            COUNT(*)::int AS students,
@@ -339,6 +349,7 @@ export async function getBatchPerformance(): Promise<
 /* ---------- ID generators ---------- */
 
 export async function nextReceiptNumber(): Promise<string> {
+  const sql = getSql()
   const rows = await sql`SELECT COUNT(*)::int AS c FROM payments`
   const n = (rows[0]?.c ?? 0) + 1
   const yr = new Date().getFullYear()
@@ -346,24 +357,28 @@ export async function nextReceiptNumber(): Promise<string> {
 }
 
 export async function nextStudentId(): Promise<string> {
+  const sql = getSql()
   const rows = await sql`SELECT COUNT(*)::int AS c FROM students`
   const n = (rows[0]?.c ?? 0) + 1
   return `STU${String(n).padStart(4, "0")}`
 }
 
 export async function nextPaymentId(): Promise<string> {
+  const sql = getSql()
   const rows = await sql`SELECT COUNT(*)::int AS c FROM payments`
   const n = (rows[0]?.c ?? 0) + 1
   return `PAY${String(n).padStart(4, "0")}`
 }
 
 export async function nextExpenseId(): Promise<string> {
+  const sql = getSql()
   const rows = await sql`SELECT COUNT(*)::int AS c FROM expenses`
   const n = (rows[0]?.c ?? 0) + 1
   return `EXP${String(n).padStart(4, "0")}`
 }
 
 export async function nextInquiryId(): Promise<string> {
+  const sql = getSql()
   const rows = await sql`SELECT COUNT(*)::int AS c FROM inquiries`
   const n = (rows[0]?.c ?? 0) + 1
   return `INQ${String(n).padStart(4, "0")}`

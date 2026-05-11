@@ -1,7 +1,7 @@
 "use server"
 
 import { revalidatePath } from "next/cache"
-import { sql } from "@/lib/db"
+import { getSql } from "@/lib/db"
 import {
   nextStudentId,
   nextPaymentId,
@@ -25,6 +25,7 @@ export async function createStudent(input: {
   status?: "active" | "completed" | "dropped"
   photo?: string
 }) {
+  const sql = getSql()
   const id = await nextStudentId()
   await sql`
     INSERT INTO students (id, name, photo, mobile, email, address, course, batch, joining_date, total_fees, status)
@@ -51,6 +52,7 @@ export async function updateStudent(
     photo?: string
   },
 ) {
+  const sql = getSql()
   await sql`
     UPDATE students SET
       name = ${input.name},
@@ -70,6 +72,7 @@ export async function updateStudent(
 }
 
 export async function deleteStudent(id: string) {
+  const sql = getSql()
   await sql`DELETE FROM students WHERE id = ${id}`
   revalidatePath("/students")
   revalidatePath("/dashboard")
@@ -84,6 +87,7 @@ export async function createPayment(input: {
   date: string
   note?: string
 }) {
+  const sql = getSql()
   const id = await nextPaymentId()
   const receiptNo = await nextReceiptNumber()
   await sql`
@@ -97,6 +101,7 @@ export async function createPayment(input: {
 }
 
 export async function deletePayment(id: string) {
+  const sql = getSql()
   const rows = await sql`SELECT student_id FROM payments WHERE id = ${id}`
   await sql`DELETE FROM payments WHERE id = ${id}`
   revalidatePath("/fees")
@@ -115,6 +120,7 @@ export async function createExpense(input: {
   paidTo?: string
   note?: string
 }) {
+  const sql = getSql()
   const id = await nextExpenseId()
   await sql`
     INSERT INTO expenses (id, title, category, amount, date, note, paid_to)
@@ -127,6 +133,7 @@ export async function createExpense(input: {
 }
 
 export async function deleteExpense(id: string) {
+  const sql = getSql()
   await sql`DELETE FROM expenses WHERE id = ${id}`
   revalidatePath("/expenses")
   revalidatePath("/dashboard")
@@ -145,6 +152,7 @@ export async function createInquiry(input: {
   followUpDate?: string
   notes?: string
 }) {
+  const sql = getSql()
   const id = await nextInquiryId()
   await sql`
     INSERT INTO inquiries (id, name, mobile, email, course, source, status, notes, date, follow_up_date)
@@ -160,12 +168,14 @@ export async function updateInquiryStatus(
   id: string,
   status: "new" | "contacted" | "converted" | "lost",
 ) {
+  const sql = getSql()
   await sql`UPDATE inquiries SET status = ${status} WHERE id = ${id}`
   revalidatePath("/inquiries")
   revalidatePath("/dashboard")
 }
 
 export async function deleteInquiry(id: string) {
+  const sql = getSql()
   await sql`DELETE FROM inquiries WHERE id = ${id}`
   revalidatePath("/inquiries")
   revalidatePath("/dashboard")
@@ -178,6 +188,7 @@ export async function markAttendance(input: {
   date: string
   status: "present" | "absent" | "late"
 }) {
+  const sql = getSql()
   const id = nextAttendanceId()
   await sql`
     INSERT INTO attendance (id, student_id, date, status)
