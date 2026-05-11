@@ -30,6 +30,7 @@ export function StudentFormDialog() {
   const [open, setOpen] = useState(false)
   const [course, setCourse] = useState<string>(COURSES[0])
   const [batch, setBatch] = useState<string>(BATCHES[0])
+  const [gender, setGender] = useState<string>("Male")
   const [pending, startTransition] = useTransition()
 
   function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
@@ -40,10 +41,14 @@ export function StudentFormDialog() {
       mobile: String(fd.get("mobile") ?? ""),
       email: String(fd.get("email") ?? ""),
       address: String(fd.get("address") ?? ""),
+      parentMobile: String(fd.get("parentMobile") ?? "") || undefined,
+      gender,
+      dateOfBirth: String(fd.get("dateOfBirth") ?? "") || undefined,
       course,
       batch,
       joiningDate: String(fd.get("joining") ?? ""),
       totalFees: Number(fd.get("totalFees") ?? 0),
+      installmentPlan: String(fd.get("installmentPlan") ?? "") || undefined,
     }
 
     startTransition(async () => {
@@ -93,6 +98,35 @@ export function StudentFormDialog() {
           <div className="space-y-2 sm:col-span-2">
             <Label htmlFor="address">Address</Label>
             <Textarea id="address" name="address" placeholder="Permanent address..." rows={2} />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="parentMobile">Parent Mobile (Optional)</Label>
+            <Input id="parentMobile" name="parentMobile" type="tel" placeholder="+91 ..." />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="gender">Gender</Label>
+            <Select value={gender} onValueChange={setGender}>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="Male">Male</SelectItem>
+                <SelectItem value="Female">Female</SelectItem>
+                <SelectItem value="Other">Other</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="dateOfBirth">Date of Birth (Optional)</Label>
+            <Input id="dateOfBirth" name="dateOfBirth" type="date" />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="installmentPlan">Installment Plan (Optional)</Label>
+            <Input id="installmentPlan" name="installmentPlan" placeholder="e.g., 3 months" />
           </div>
 
           <div className="space-y-2">

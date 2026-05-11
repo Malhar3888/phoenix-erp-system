@@ -197,3 +197,82 @@ export async function markAttendance(input: {
   revalidatePath("/attendance")
   revalidatePath(`/students/${input.studentId}`)
 }
+
+/* ---------------- BATCHES ---------------- */
+
+export async function createBatch(input: {
+  name: string
+  course: string
+  trainer?: string
+  startDate: string
+  endDate?: string
+  batchTime?: string
+  maxStudents?: number
+  mode: "Online" | "Offline" | "Hybrid"
+  status?: "Active" | "Completed" | "Paused"
+}) {
+  const sql = getSql()
+  const { nextBatchId } = await import("@/lib/queries")
+  const id = await nextBatchId()
+  await sql`
+    INSERT INTO batches (id, name, course, trainer, start_date, end_date, batch_time, max_students, mode, status)
+    VALUES (${id}, ${input.name}, ${input.course}, ${input.trainer ?? null}, ${input.startDate},
+            ${input.endDate ?? null}, ${input.batchTime ?? null}, ${input.maxStudents ?? 30},
+            ${input.mode}, ${input.status ?? "Active"})`
+  revalidatePath("/batches")
+  return { id }
+}
+
+export async function updateBatch(
+  id: string,
+  input: {
+    name: string
+    course: string
+    trainer?: string
+    startDate: string
+    endDate?: string
+    batchTime?: string
+    maxStudents?: number
+    mode: "Online" | "Offline" | "Hybrid"
+    status: "Active" | "Completed" | "Paused"
+  },
+) {
+  const sql = getSql()
+  await sql`
+    UPDATE batches SET
+      name = ${input.name},
+      course = ${input.course},
+      trainer = ${input.trainer ?? null},
+      start_date = ${input.startDate},
+      end_date = ${input.endDate ?? null},
+      batch_time = ${input.batchTime ?? null},
+      max_students = ${input.maxStudents ?? 30},
+      mode = ${input.mode},
+      status = ${input.status},
+      updated_at = NOW()
+    WHERE id = ${id}`
+  revalidatePath("/batches")
+}
+
+export async function deleteBatch(id: string) {
+  const sql = getSql()
+  await sql`DELETE FROM batches WHERE id = ${id}`
+  revalidatePath("/batches")
+}
+
+export async function assignStudentToBatch(studentId: string, batchId: string) {
+  const sql = getSql()
+  const id = `BS${Date.now()}${Math.floor(Math.random() * 1000)}`
+  await sql`
+    INSERT INTO batch_students (id, batch_id, student_id, assigned_date)
+    VALUES (${id}, ${batchId}, ${studentId}, CURRENT_DATE)`
+  revalidatePath("/batches")
+  revalidatePath(`/students/${studentId}`)
+}
+
+export async function removeStudentFromBatch(studentId: string, batchId: string) {
+  const sql = getSql()
+  await sql`DELETE FROM batch_students WHERE batch_id = ${batchId} AND student_id = ${studentId}`
+  revalidatePath("/batches")
+  revalidatePath(`/students/${studentId}`)
+}
