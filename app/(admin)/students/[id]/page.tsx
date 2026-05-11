@@ -6,7 +6,9 @@ import {
   GraduationCap,
   Mail,
   MapPin,
+  Pencil,
   Phone,
+  Trash2,
   TrendingUp,
 } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
@@ -20,6 +22,8 @@ import { StudentQrCard } from "@/components/admin/student-qr-card"
 import { StudentPaymentsTable } from "@/components/admin/student-payments-table"
 import { StudentAttendance } from "@/components/admin/student-attendance"
 import { StudentDocuments } from "@/components/admin/student-documents"
+import { StudentFormDialog } from "@/components/admin/student-form-dialog"
+import { StudentDeleteDialog } from "@/components/admin/student-delete-dialog"
 import {
   getAttendanceByStudent,
   getDocumentsByStudent,
@@ -67,7 +71,29 @@ export default async function StudentProfilePage({
         description={`${student.id}  •  ${student.course}  •  ${student.batch}`}
         actions={
           <>
-            <Button variant="outline">Edit</Button>
+            <StudentFormDialog
+              student={student}
+              trigger={
+                <Button variant="outline">
+                  <Pencil />
+                  Edit
+                </Button>
+              }
+            />
+            <StudentDeleteDialog
+              studentId={student.id}
+              studentName={student.name}
+              redirectAfter
+              trigger={
+                <Button
+                  variant="outline"
+                  className="border-destructive/40 text-destructive hover:bg-destructive/10 hover:text-destructive"
+                >
+                  <Trash2 />
+                  Delete
+                </Button>
+              }
+            />
             <Button asChild>
               <Link href="/fees">Add Payment</Link>
             </Button>
