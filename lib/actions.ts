@@ -282,3 +282,61 @@ export async function removeStudentFromBatch(studentId: string, batchId: string)
   revalidatePath("/batches")
   revalidatePath(`/students/${studentId}`)
 }
+
+/* ---------------- COURSES ---------------- */
+
+export async function createCourse(input: {
+  name: string
+  code: string
+  duration: string
+  fees: number
+  trainerName?: string
+  description?: string
+  status?: "Active" | "Inactive" | "Archived"
+}) {
+  const sql = getSql()
+  const { nextCourseId } = await import("@/lib/queries")
+  const id = await nextCourseId()
+  await sql`
+    INSERT INTO courses (id, name, code, duration, fees, trainer_name, description, status)
+    VALUES (${id}, ${input.name}, ${input.code}, ${input.duration}, ${input.fees},
+            ${input.trainerName ?? null}, ${input.description ?? null}, ${input.status ?? "Active"})`
+  revalidatePath("/courses")
+  revalidatePath("/dashboard")
+  return { id }
+}
+
+export async function updateCourse(
+  id: string,
+  input: {
+    name: string
+    code: string
+    duration: string
+    fees: number
+    trainerName?: string
+    description?: string
+    status: "Active" | "Inactive" | "Archived"
+  },
+) {
+  const sql = getSql()
+  await sql`
+    UPDATE courses SET
+      name = ${input.name},
+      code = ${input.code},
+      duration = ${input.duration},
+      fees = ${input.fees},
+      trainer_name = ${input.trainerName ?? null},
+      description = ${input.description ?? null},
+      status = ${input.status},
+      updated_at = NOW()
+    WHERE id = ${id}`
+  revalidatePath("/courses")
+  revalidatePath("/dashboard")
+}
+
+export async function deleteCourse(id: string) {
+  const sql = getSql()
+  await sql`DELETE FROM courses WHERE id = ${id}`
+  revalidatePath("/courses")
+  revalidatePath("/dashboard")
+}

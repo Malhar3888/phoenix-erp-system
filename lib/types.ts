@@ -1,5 +1,20 @@
 export type StudentStatus = "active" | "completed" | "dropped"
 
+export type CourseStatus = "Active" | "Inactive" | "Archived"
+
+export type Course = {
+  id: string
+  name: string
+  code: string
+  duration: string
+  fees: number
+  trainerName?: string
+  description?: string
+  status: CourseStatus
+  createdAt?: string
+  updatedAt?: string
+}
+
 export type Student = {
   id: string
   name: string

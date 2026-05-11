@@ -5,6 +5,7 @@ import Link from "next/link"
 import { usePathname } from "next/navigation"
 import {
   BarChart3,
+  BookOpen,
   CalendarCheck,
   GraduationCap,
   IndianRupee,
@@ -13,6 +14,7 @@ import {
   Receipt,
   Settings,
   Wallet,
+  BookMarked,
 } from "lucide-react"
 import {
   Sidebar,
@@ -30,6 +32,8 @@ import {
 const mainNav = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { href: "/students", label: "Students", icon: GraduationCap },
+  { href: "/courses", label: "Courses", icon: BookOpen },
+  { href: "/batches", label: "Batches", icon: BookMarked },
   { href: "/fees", label: "Fees & Payments", icon: IndianRupee },
   { href: "/attendance", label: "Attendance", icon: CalendarCheck },
   { href: "/expenses", label: "Expenses", icon: Wallet },

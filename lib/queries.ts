@@ -1,6 +1,7 @@
 import "server-only"
 import { getSql } from "@/lib/db"
 import type {
+  Course,
   Student,
   Payment,
   Expense,
@@ -457,4 +458,52 @@ export async function getBatchStudents(batchId: string): Promise<import("@/lib/t
     studentName: r.student_name,
     assignedDate: toDateStr(r.assigned_date),
   }))
+}
+
+/* ---------- COURSE QUERIES ---------- */
+
+export async function nextCourseId(): Promise<string> {
+  const sql = getSql()
+  const rows = await sql`SELECT COUNT(*)::int AS c FROM courses`
+  const n = (rows[0]?.c ?? 0) + 1
+  return `CRS${String(n).padStart(4, "0")}`
+}
+
+export async function getAllCourses(): Promise<Course[]> {
+  const sql = getSql()
+  const rows = await sql`
+    SELECT * FROM courses
+    ORDER BY created_at DESC
+  `
+  return rows.map((r: any) => ({
+    id: r.id,
+    name: r.name,
+    code: r.code,
+    duration: r.duration,
+    fees: Number(r.fees),
+    trainerName: r.trainer_name ?? undefined,
+    description: r.description ?? undefined,
+    status: r.status,
+    createdAt: new Date(r.created_at).toISOString(),
+    updatedAt: new Date(r.updated_at).toISOString(),
+  }))
+}
+
+export async function getCourseById(id: string): Promise<Course | null> {
+  const sql = getSql()
+  const rows = await sql`SELECT * FROM courses WHERE id = ${id}`
+  if (!rows[0]) return null
+  const r = rows[0]
+  return {
+    id: r.id,
+    name: r.name,
+    code: r.code,
+    duration: r.duration,
+    fees: Number(r.fees),
+    trainerName: r.trainer_name ?? undefined,
+    description: r.description ?? undefined,
+    status: r.status,
+    createdAt: new Date(r.created_at).toISOString(),
+    updatedAt: new Date(r.updated_at).toISOString(),
+  }
 }
