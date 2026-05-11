@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useTransition } from "react"
+import { useEffect, useState, useTransition } from "react"
 import { Loader2, Plus } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import {
@@ -22,15 +22,59 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
-import { BATCHES, COURSES } from "@/lib/mock-data"
+import { BATCHES } from "@/lib/mock-data"
 import { toast } from "sonner"
-import { createStudent } from "@/lib/actions"
+import { createStudent, updateStudent } from "@/lib/actions"
+import type { Student, StudentStatus, Course } from "@/lib/types"
 
-export function StudentFormDialog() {
-  const [open, setOpen] = useState(false)
-  const [course, setCourse] = useState<string>(COURSES[0])
-  const [batch, setBatch] = useState<string>(BATCHES[0])
+type Props = {
+  /** If provided, the dialog is in edit mode. */
+  student?: Student
+  /** Custom trigger; defaults to "Add Student" primary button (create mode only). */
+  trigger?: React.ReactNode
+  /** Controlled open state (optional). */
+  open?: boolean
+  onOpenChange?: (open: boolean) => void
+  /** Available courses from server (pass from parent) */
+  courses?: Course[]
+}
+
+export function StudentFormDialog({
+  student,
+  trigger,
+  open: openProp,
+  onOpenChange,
+  courses: initialCourses = [],
+}: Props) {
+  const isEdit = !!student
+  const [uncontrolledOpen, setUncontrolledOpen] = useState(false)
+  const open = openProp ?? uncontrolledOpen
+  const setOpen = onOpenChange ?? setUncontrolledOpen
+
+  const [courses, setCourses] = useState<Course[]>(initialCourses)
+  const [course, setCourse] = useState<string>(student?.course ?? (initialCourses[0]?.name || ""))
+  const [batch, setBatch] = useState<string>(student?.batch ?? BATCHES[0])
+  const [status, setStatus] = useState<StudentStatus>(student?.status ?? "active")
   const [pending, startTransition] = useTransition()
+
+  // Fetch courses on mount if not provided
+  useEffect(() => {
+    if (!courses.length && open) {
+      fetch("/api/courses")
+        .then((res) => res.json())
+        .then((data) => setCourses(data.courses || []))
+        .catch(() => toast.error("Failed to load courses"))
+    }
+  }, [open, courses.length])
+
+  // Reset internal selects whenever the dialog opens for a new student.
+  useEffect(() => {
+    if (open && student) {
+      setCourse(student.course)
+      setBatch(student.batch)
+      setStatus(student.status)
+    }
+  }, [open, student])
 
   function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
@@ -48,67 +92,114 @@ export function StudentFormDialog() {
 
     startTransition(async () => {
       try {
-        const res = await createStudent(payload)
-        toast.success(`Student ${res.id} added`)
+        if (isEdit && student) {
+          await updateStudent(student.id, { ...payload, status })
+          toast.success(`${payload.name} updated`)
+        } else {
+          const res = await createStudent(payload)
+          toast.success(`Student ${res.id} added`)
+        }
         setOpen(false)
         ;(e.target as HTMLFormElement).reset()
       } catch (err) {
-        console.log("[v0] createStudent failed:", err)
-        toast.error("Could not add student. Please try again.")
+        console.log("[v0] save student failed:", err)
+        toast.error(isEdit ? "Could not update student." : "Could not add student.")
       }
     })
   }
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        <Button>
-          <Plus />
-          Add Student
-        </Button>
-      </DialogTrigger>
+      {trigger ? (
+        <DialogTrigger asChild>{trigger}</DialogTrigger>
+      ) : (
+        !isEdit && (
+          <DialogTrigger asChild>
+            <Button>
+              <Plus />
+              Add Student
+            </Button>
+          </DialogTrigger>
+        )
+      )}
       <DialogContent className="max-w-2xl">
         <DialogHeader>
-          <DialogTitle>Add New Student</DialogTitle>
+          <DialogTitle>{isEdit ? "Edit Student" : "Add New Student"}</DialogTitle>
           <DialogDescription>
-            Fill in the student&apos;s details. They&apos;ll be enrolled into the selected batch.
+            {isEdit
+              ? "Update the student's details and save changes."
+              : "Fill in the student's details. They'll be enrolled into the selected batch."}
           </DialogDescription>
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="grid gap-4 sm:grid-cols-2">
           <div className="space-y-2 sm:col-span-2">
             <Label htmlFor="name">Full Name</Label>
-            <Input id="name" name="name" placeholder="e.g. Rahul Sharma" required />
+            <Input
+              id="name"
+              name="name"
+              placeholder="e.g. Rahul Sharma"
+              defaultValue={student?.name}
+              required
+            />
           </div>
 
           <div className="space-y-2">
             <Label htmlFor="mobile">Mobile</Label>
-            <Input id="mobile" name="mobile" type="tel" placeholder="+91 ..." required />
+            <Input
+              id="mobile"
+              name="mobile"
+              type="tel"
+              placeholder="+91 ..."
+              defaultValue={student?.mobile}
+              required
+            />
           </div>
           <div className="space-y-2">
             <Label htmlFor="email">Email</Label>
-            <Input id="email" name="email" type="email" placeholder="name@example.com" required />
+            <Input
+              id="email"
+              name="email"
+              type="email"
+              placeholder="name@example.com"
+              defaultValue={student?.email}
+              required
+            />
           </div>
 
           <div className="space-y-2 sm:col-span-2">
             <Label htmlFor="address">Address</Label>
-            <Textarea id="address" name="address" placeholder="Permanent address..." rows={2} />
+            <Textarea
+              id="address"
+              name="address"
+              placeholder="Permanent address..."
+              defaultValue={student?.address}
+              rows={2}
+            />
           </div>
 
           <div className="space-y-2">
             <Label>Course</Label>
-            <Select value={course} onValueChange={setCourse}>
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {COURSES.map((c) => (
-                  <SelectItem key={c} value={c}>
-                    {c}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            {courses.length > 0 ? (
+              <Select value={course} onValueChange={setCourse}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {courses
+                    .filter((c) => c.status === "Active")
+                    .map((c) => (
+                      <SelectItem key={c.id} value={c.name}>
+                        {c.name}
+                      </SelectItem>
+                    ))}
+                </SelectContent>
+              </Select>
+            ) : (
+              <div className="flex h-10 items-center rounded-md border border-input bg-background px-3 py-2 text-sm text-muted-foreground">
+                No active courses available
+              </div>
+            )}
           </div>
 
           <div className="space-y-2">
@@ -129,7 +220,13 @@ export function StudentFormDialog() {
 
           <div className="space-y-2">
             <Label htmlFor="joining">Joining Date</Label>
-            <Input id="joining" name="joining" type="date" required />
+            <Input
+              id="joining"
+              name="joining"
+              type="date"
+              defaultValue={student?.joiningDate}
+              required
+            />
           </div>
           <div className="space-y-2">
             <Label htmlFor="totalFees">Total Fees (INR)</Label>
@@ -140,17 +237,39 @@ export function StudentFormDialog() {
               inputMode="numeric"
               min={0}
               placeholder="45000"
+              defaultValue={student?.totalFees}
               required
             />
           </div>
 
+          {isEdit && (
+            <div className="space-y-2 sm:col-span-2">
+              <Label>Status</Label>
+              <Select value={status} onValueChange={(v) => setStatus(v as StudentStatus)}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="active">Active</SelectItem>
+                  <SelectItem value="completed">Completed</SelectItem>
+                  <SelectItem value="dropped">Dropped</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+
           <DialogFooter className="sm:col-span-2">
-            <Button type="button" variant="outline" onClick={() => setOpen(false)} disabled={pending}>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setOpen(false)}
+              disabled={pending}
+            >
               Cancel
             </Button>
             <Button type="submit" disabled={pending}>
               {pending && <Loader2 className="animate-spin" />}
-              Add Student
+              {isEdit ? "Save Changes" : "Add Student"}
             </Button>
           </DialogFooter>
         </form>

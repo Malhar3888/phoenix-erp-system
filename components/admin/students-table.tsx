@@ -2,7 +2,7 @@
 
 import Link from "next/link"
 import { useMemo, useState } from "react"
-import { ChevronRight, Search } from "lucide-react"
+import { Search } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
 import { Progress } from "@/components/ui/progress"
@@ -21,10 +21,10 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
-import { Button } from "@/components/ui/button"
 import { BATCHES, COURSES } from "@/lib/mock-data"
 import { formatINR, initialsFrom } from "@/lib/format"
 import type { Student } from "@/lib/types"
+import { StudentRowActions } from "@/components/admin/student-row-actions"
 
 const STATUS_STYLES: Record<string, string> = {
   active: "bg-primary/15 text-primary border-primary/30",
@@ -160,16 +160,15 @@ export function StudentsTable({ students }: { students: Student[] }) {
                     </Badge>
                   </TableCell>
                   <TableCell className="text-right">
-                    <Button
-                      asChild
-                      variant="ghost"
-                      size="sm"
-                      className="opacity-60 transition group-hover:opacity-100"
-                    >
-                      <Link href={`/students/${s.id}`}>
-                        View <ChevronRight />
+                    <div className="flex items-center justify-end">
+                      <Link
+                        href={`/students/${s.id}`}
+                        className="hidden text-xs font-medium text-muted-foreground transition hover:text-primary sm:inline-block"
+                      >
+                        View profile
                       </Link>
-                    </Button>
+                      <StudentRowActions student={s} />
+                    </div>
                   </TableCell>
                 </TableRow>
               )
