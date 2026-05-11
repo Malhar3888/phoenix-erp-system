@@ -200,6 +200,13 @@ export async function markAttendance(input: {
 
 /* ---------------- BATCHES ---------------- */
 
+async function nextBatchId(): Promise<string> {
+  const sql = getSql()
+  const rows = await sql`SELECT COUNT(*)::int AS c FROM batches`
+  const n = (rows[0]?.c ?? 0) + 1
+  return `BAT${String(n).padStart(4, "0")}`
+}
+
 export async function createBatch(input: {
   name: string
   course: string
@@ -212,7 +219,6 @@ export async function createBatch(input: {
   status?: "Active" | "Completed" | "Paused"
 }) {
   const sql = getSql()
-  const { nextBatchId } = await import("@/lib/queries")
   const id = await nextBatchId()
   await sql`
     INSERT INTO batches (id, name, course, trainer, start_date, end_date, batch_time, max_students, mode, status)
@@ -248,8 +254,7 @@ export async function updateBatch(
       batch_time = ${input.batchTime ?? null},
       max_students = ${input.maxStudents ?? 30},
       mode = ${input.mode},
-      status = ${input.status},
-      updated_at = NOW()
+      status = ${input.status}
     WHERE id = ${id}`
   revalidatePath("/batches")
 }
@@ -265,7 +270,8 @@ export async function assignStudentToBatch(studentId: string, batchId: string) {
   const id = `BS${Date.now()}${Math.floor(Math.random() * 1000)}`
   await sql`
     INSERT INTO batch_students (id, batch_id, student_id, assigned_date)
-    VALUES (${id}, ${batchId}, ${studentId}, CURRENT_DATE)`
+    VALUES (${id}, ${batchId}, ${studentId}, CURRENT_DATE)
+    ON CONFLICT (batch_id, student_id) DO NOTHING`
   revalidatePath("/batches")
   revalidatePath(`/students/${studentId}`)
 }

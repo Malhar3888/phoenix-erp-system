@@ -13,7 +13,6 @@ import {
   Receipt,
   Settings,
   Wallet,
-  BookOpen,
 } from "lucide-react"
 import {
   Sidebar,
@@ -31,7 +30,6 @@ import {
 const mainNav = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { href: "/students", label: "Students", icon: GraduationCap },
-  { href: "/batches", label: "Batches", icon: BookOpen },
   { href: "/fees", label: "Fees & Payments", icon: IndianRupee },
   { href: "/attendance", label: "Attendance", icon: CalendarCheck },
   { href: "/expenses", label: "Expenses", icon: Wallet },

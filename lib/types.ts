@@ -7,9 +7,6 @@ export type Student = {
   mobile: string
   email: string
   address: string
-  parentMobile?: string
-  gender?: "Male" | "Female" | "Other"
-  dateOfBirth?: string
   course: string
   batch: string
   joiningDate: string
@@ -17,34 +14,7 @@ export type Student = {
   totalFees: number
   paidFees: number
   remainingFees: number
-  installmentPlan?: string
-  notes?: string
   status: StudentStatus
-}
-
-export type BatchMode = "Online" | "Offline" | "Hybrid"
-export type BatchStatus = "Active" | "Completed" | "Paused"
-
-export type Batch = {
-  id: string
-  name: string
-  course: string
-  trainer?: string
-  startDate: string
-  endDate?: string
-  batchTime?: string
-  maxStudents: number
-  mode: BatchMode
-  status: BatchStatus
-  studentCount?: number
-  createdAt: string
-}
-
-export type BatchStudent = {
-  batchId: string
-  studentId: string
-  studentName: string
-  assignedDate: string
 }
 
 export type PaymentMode = "Cash" | "UPI" | "Card" | "Bank Transfer"
