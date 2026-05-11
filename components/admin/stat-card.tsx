@@ -4,30 +4,47 @@ import { Card, CardContent } from "@/components/ui/card"
 import { cn } from "@/lib/utils"
 
 type StatCardProps = {
-  label: string
+  // primary API
+  label?: string
+  hint?: string
+  delta?: number
+  // alternate API used by some pages
+  title?: string
+  subtitle?: string
+  trend?: { value: string; positive: boolean }
+
   value: string
   icon: LucideIcon
-  delta?: number
-  hint?: string
   accent?: "primary" | "muted"
 }
 
 export function StatCard({
   label,
+  title,
   value,
   icon: Icon,
   delta,
   hint,
+  subtitle,
+  trend,
   accent = "muted",
 }: StatCardProps) {
-  const positive = (delta ?? 0) >= 0
+  const heading = label ?? title ?? ""
+  const sub = hint ?? subtitle
+  const positive = trend ? trend.positive : (delta ?? 0) >= 0
+  const trendText = trend
+    ? trend.value
+    : typeof delta === "number"
+      ? `${Math.abs(delta)}%`
+      : null
+
   return (
     <Card className="glass relative overflow-hidden">
       <CardContent className="flex flex-col gap-4 p-5">
         <div className="flex items-start justify-between gap-3">
           <div className="space-y-1">
             <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-              {label}
+              {heading}
             </p>
             <p className="text-2xl font-bold tracking-tight text-foreground md:text-3xl">
               {value}
@@ -45,9 +62,9 @@ export function StatCard({
           </div>
         </div>
 
-        {(typeof delta === "number" || hint) && (
+        {(trendText || sub) && (
           <div className="flex items-center gap-2 text-xs">
-            {typeof delta === "number" && (
+            {trendText && (
               <span
                 className={cn(
                   "inline-flex items-center gap-1 rounded-full px-2 py-0.5 font-semibold",
@@ -61,10 +78,10 @@ export function StatCard({
                 ) : (
                   <ArrowDownRight className="size-3" />
                 )}
-                {Math.abs(delta)}%
+                {trendText}
               </span>
             )}
-            {hint && <span className="text-muted-foreground">{hint}</span>}
+            {sub && <span className="text-muted-foreground">{sub}</span>}
           </div>
         )}
       </CardContent>

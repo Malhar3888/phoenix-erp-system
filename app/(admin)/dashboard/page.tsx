@@ -20,14 +20,38 @@ import { StudentGrowthChart } from "@/components/admin/charts/student-growth-cha
 import { ExpenseChart } from "@/components/admin/charts/expense-chart"
 import { BatchPerformanceChart } from "@/components/admin/charts/batch-performance"
 import { RecentPayments } from "@/components/admin/recent-payments"
-import { kpis, monthlyRevenue } from "@/lib/mock-data"
+import {
+  getAllStudents,
+  getBatchPerformance,
+  getDashboardKpis,
+  getExpenseBreakdown,
+  getMonthlySnapshots,
+  getRecentPayments,
+} from "@/lib/queries"
 import { formatINR, formatNumber } from "@/lib/format"
 
-export default function DashboardPage() {
-  const months = monthlyRevenue()
-  const last = months[months.length - 1]
-  const monthlyProfit = last.profit
-  const attendancePct = 86
+export const dynamic = "force-dynamic"
+
+export default async function DashboardPage() {
+  const [kpis, monthly, expenseBreakdown, batchPerf, recent, students] = await Promise.all([
+    getDashboardKpis(),
+    getMonthlySnapshots(6),
+    getExpenseBreakdown(),
+    getBatchPerformance(),
+    getRecentPayments(7),
+    getAllStudents(),
+  ])
+
+  const last = monthly[monthly.length - 1]
+  const monthlyProfit = last?.profit ?? 0
+  const revenueChartData = monthly.map((m) => ({
+    month: m.label,
+    revenue: m.revenue,
+    expense: m.expenses,
+  }))
+  const profitChartData = monthly.map((m) => ({ month: m.label, profit: m.profit }))
+  const growthChartData = monthly.map((m) => ({ month: m.label, students: m.newStudents }))
+  const activeBatches = batchPerf.length
 
   return (
     <div className="space-y-6">
@@ -52,36 +76,31 @@ export default function DashboardPage() {
         }
       />
 
-      {/* KPI grid */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <StatCard
           label="Total Students"
           value={formatNumber(kpis.totalStudents)}
           icon={Users}
-          delta={12}
-          hint="vs last month"
+          hint={`${kpis.activeStudents} active`}
           accent="primary"
         />
         <StatCard
           label="Total Revenue"
           value={formatINR(kpis.totalRevenue)}
           icon={IndianRupee}
-          delta={18}
           hint="all-time"
         />
         <StatCard
           label="Pending Fees"
           value={formatINR(kpis.pendingFees)}
           icon={Receipt}
-          delta={-4}
-          hint="reducing"
+          hint="outstanding"
         />
         <StatCard
           label="Monthly Profit"
           value={formatINR(monthlyProfit)}
           icon={TrendingUp}
-          delta={9}
-          hint="May 2026"
+          hint={last?.label ?? "—"}
           accent="primary"
         />
       </div>
@@ -91,32 +110,29 @@ export default function DashboardPage() {
           label="Total Expenses"
           value={formatINR(kpis.totalExpenses)}
           icon={Wallet}
-          delta={6}
-          hint="this quarter"
+          hint="all-time"
         />
         <StatCard
           label="Today's Collection"
           value={formatINR(kpis.todayCollection)}
           icon={CalendarDays}
-          hint="2 receipts"
+          hint="cash + digital"
         />
         <StatCard
-          label="Attendance"
-          value={`${attendancePct}%`}
+          label="New Inquiries"
+          value={String(kpis.newInquiries)}
           icon={Activity}
-          delta={3}
-          hint="last 30 days"
+          hint="awaiting follow-up"
           accent="primary"
         />
         <StatCard
           label="Active Batches"
-          value="6"
+          value={String(activeBatches)}
           icon={GraduationCap}
-          hint="across 10 courses"
+          hint="in progress"
         />
       </div>
 
-      {/* Main charts */}
       <div className="grid gap-4 lg:grid-cols-3">
         <Card className="glass lg:col-span-2">
           <CardHeader className="flex flex-row items-start justify-between gap-3 space-y-0">
@@ -125,11 +141,11 @@ export default function DashboardPage() {
               <CardDescription>Last 6 months — INR</CardDescription>
             </div>
             <Badge variant="outline" className="border-primary/40 bg-primary/10 text-primary">
-              ↑ 18% growth
+              {formatINR(kpis.monthRevenue)} this month
             </Badge>
           </CardHeader>
           <CardContent>
-            <RevenueChart />
+            <RevenueChart data={revenueChartData} />
           </CardContent>
         </Card>
 
@@ -139,7 +155,7 @@ export default function DashboardPage() {
             <CardDescription>Latest 7 receipts</CardDescription>
           </CardHeader>
           <CardContent>
-            <RecentPayments />
+            <RecentPayments payments={recent} students={students} />
           </CardContent>
         </Card>
       </div>
@@ -151,27 +167,27 @@ export default function DashboardPage() {
             <CardDescription>Net of revenue minus expenses</CardDescription>
           </CardHeader>
           <CardContent>
-            <ProfitChart />
+            <ProfitChart data={profitChartData} />
           </CardContent>
         </Card>
 
         <Card className="glass">
           <CardHeader>
             <CardTitle>Student Growth</CardTitle>
-            <CardDescription>Active students over time</CardDescription>
+            <CardDescription>New enrollments per month</CardDescription>
           </CardHeader>
           <CardContent>
-            <StudentGrowthChart />
+            <StudentGrowthChart data={growthChartData} />
           </CardContent>
         </Card>
 
         <Card className="glass">
           <CardHeader>
             <CardTitle>Expense Breakdown</CardTitle>
-            <CardDescription>By category — last quarter</CardDescription>
+            <CardDescription>By category — all time</CardDescription>
           </CardHeader>
           <CardContent>
-            <ExpenseChart />
+            <ExpenseChart data={expenseBreakdown} />
           </CardContent>
         </Card>
       </div>
@@ -179,10 +195,10 @@ export default function DashboardPage() {
       <Card className="glass">
         <CardHeader>
           <CardTitle>Batch Performance</CardTitle>
-          <CardDescription>Average attendance % per batch</CardDescription>
+          <CardDescription>Students per batch</CardDescription>
         </CardHeader>
         <CardContent>
-          <BatchPerformanceChart />
+          <BatchPerformanceChart data={batchPerf} />
         </CardContent>
       </Card>
     </div>

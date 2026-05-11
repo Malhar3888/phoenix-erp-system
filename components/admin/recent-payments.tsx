@@ -1,11 +1,10 @@
 "use client"
 
-import { useState } from "react"
+import { useMemo, useState } from "react"
 import { Receipt } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { ReceiptDialog } from "@/components/admin/receipt-dialog"
-import { getRecentPayments, getStudentById } from "@/lib/mock-data"
 import { formatDate, formatINR, initialsFrom } from "@/lib/format"
 import type { Payment, Student } from "@/lib/types"
 
@@ -16,23 +15,37 @@ const modeColor: Record<string, string> = {
   "Bank Transfer": "bg-chart-5/15 text-[oklch(0.85_0.1_90)]",
 }
 
-export function RecentPayments() {
-  const items = getRecentPayments(7)
+export function RecentPayments({
+  payments,
+  students,
+}: {
+  payments: Payment[]
+  students: Student[]
+}) {
   const [open, setOpen] = useState(false)
   const [active, setActive] = useState<{ payment: Payment; student: Student } | null>(null)
+  const studentMap = useMemo(() => new Map(students.map((s) => [s.id, s])), [students])
 
   function viewReceipt(p: Payment) {
-    const s = getStudentById(p.studentId)
+    const s = studentMap.get(p.studentId)
     if (!s) return
     setActive({ payment: p, student: s })
     setOpen(true)
   }
 
+  if (payments.length === 0) {
+    return (
+      <div className="grid place-items-center rounded-xl border border-dashed border-border/60 px-4 py-10 text-center text-sm text-muted-foreground">
+        No payments recorded yet.
+      </div>
+    )
+  }
+
   return (
     <>
       <ul className="divide-y divide-border/60">
-        {items.map((p) => {
-          const s = getStudentById(p.studentId)
+        {payments.map((p) => {
+          const s = studentMap.get(p.studentId)
           if (!s) return null
           return (
             <li

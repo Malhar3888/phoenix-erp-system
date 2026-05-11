@@ -1,7 +1,7 @@
 "use client"
 
-import { useState } from "react"
-import { Plus } from "lucide-react"
+import { useState, useTransition } from "react"
+import { Loader2, Plus } from "lucide-react"
 import {
   Dialog,
   DialogContent,
@@ -22,7 +22,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import type { Expense, ExpenseCategory } from "@/lib/types"
+import type { ExpenseCategory } from "@/lib/types"
+import { createExpense } from "@/lib/actions"
+import { toast } from "sonner"
 
 const CATEGORIES: ExpenseCategory[] = [
   "Rent",
@@ -34,34 +36,37 @@ const CATEGORIES: ExpenseCategory[] = [
   "Other",
 ]
 
-type Props = {
-  onSubmit?: (expense: Expense) => void
-}
-
-export function ExpenseFormDialog({ onSubmit }: Props) {
+export function ExpenseFormDialog() {
   const [open, setOpen] = useState(false)
   const [title, setTitle] = useState("")
   const [amount, setAmount] = useState("")
   const [category, setCategory] = useState<ExpenseCategory>("Rent")
   const [date, setDate] = useState(new Date().toISOString().slice(0, 10))
   const [note, setNote] = useState("")
+  const [pending, startTransition] = useTransition()
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
-    const expense: Expense = {
-      id: `EXP-${Math.floor(Math.random() * 9000) + 1000}`,
-      title,
-      amount: Number(amount),
-      category,
-      date,
-      note: note || undefined,
-    }
-    onSubmit?.(expense)
-    setOpen(false)
-    setTitle("")
-    setAmount("")
-    setCategory("Rent")
-    setNote("")
+    startTransition(async () => {
+      try {
+        await createExpense({
+          title,
+          category,
+          amount: Number(amount),
+          date,
+          note: note || undefined,
+        })
+        toast.success("Expense recorded")
+        setOpen(false)
+        setTitle("")
+        setAmount("")
+        setCategory("Rent")
+        setNote("")
+      } catch (err) {
+        console.log("[v0] createExpense failed:", err)
+        toast.error("Could not save expense.")
+      }
+    })
   }
 
   return (
@@ -140,10 +145,13 @@ export function ExpenseFormDialog({ onSubmit }: Props) {
             />
           </div>
           <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => setOpen(false)}>
+            <Button type="button" variant="outline" onClick={() => setOpen(false)} disabled={pending}>
               Cancel
             </Button>
-            <Button type="submit">Save Expense</Button>
+            <Button type="submit" disabled={pending}>
+              {pending && <Loader2 className="animate-spin" />}
+              Save Expense
+            </Button>
           </DialogFooter>
         </form>
       </DialogContent>

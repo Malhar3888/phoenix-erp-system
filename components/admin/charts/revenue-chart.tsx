@@ -14,15 +14,15 @@ import {
   ChartTooltipContent,
   type ChartConfig,
 } from "@/components/ui/chart"
-import { monthlyRevenue } from "@/lib/mock-data"
 
 const chartConfig = {
   revenue: { label: "Revenue", color: "var(--chart-1)" },
   expense: { label: "Expense", color: "var(--chart-3)" },
 } satisfies ChartConfig
 
-export function RevenueChart() {
-  const data = monthlyRevenue()
+type Row = { month: string; revenue: number; expense: number }
+
+export function RevenueChart({ data = [] }: { data?: Row[] }) {
   return (
     <ChartContainer config={chartConfig} className="aspect-[16/8] w-full">
       <ResponsiveContainer>
@@ -60,7 +60,7 @@ export function RevenueChart() {
               <ChartTooltipContent
                 indicator="line"
                 formatter={(value, name) => [
-                  `₹ ${Number(value).toLocaleString("en-IN")} `,
+                  `INR ${Number(value).toLocaleString("en-IN")} `,
                   String(name),
                 ]}
               />

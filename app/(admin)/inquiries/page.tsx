@@ -1,277 +1,62 @@
-"use client"
-
-import { useMemo, useState } from "react"
-import {
-  MessageSquareText,
-  Phone,
-  CheckCircle2,
-  XCircle,
-  MessageCircle,
-} from "lucide-react"
+import { MessageSquareText, Phone, CheckCircle2, XCircle } from "lucide-react"
 import { PageHeader } from "@/components/admin/page-header"
 import { StatCard } from "@/components/admin/stat-card"
 import { InquiryFormDialog } from "@/components/admin/inquiry-form-dialog"
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card"
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table"
-import { Badge } from "@/components/ui/badge"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select"
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
-import { inquiries as seedInquiries } from "@/lib/mock-data"
-import { formatDate } from "@/lib/format"
-import type { Inquiry, InquiryStatus } from "@/lib/types"
+import { InquiriesTable } from "@/components/admin/inquiries-table"
+import { getAllInquiries } from "@/lib/queries"
 
-const STATUS_STYLES: Record<InquiryStatus, string> = {
-  new: "bg-sky-500/15 text-sky-300 border-sky-500/30",
-  contacted: "bg-amber-500/15 text-amber-300 border-amber-500/30",
-  converted: "bg-emerald-500/15 text-emerald-300 border-emerald-500/30",
-  lost: "bg-rose-500/15 text-rose-300 border-rose-500/30",
-}
+export const dynamic = "force-dynamic"
 
-const STATUS_LABEL: Record<InquiryStatus, string> = {
-  new: "New",
-  contacted: "Contacted",
-  converted: "Converted",
-  lost: "Lost",
-}
+export default async function InquiriesPage() {
+  const inquiries = await getAllInquiries()
 
-export default function InquiriesPage() {
-  const [list, setList] = useState<Inquiry[]>(seedInquiries)
-  const [search, setSearch] = useState("")
-  const [status, setStatus] = useState<string>("all")
-
-  const filtered = useMemo(() => {
-    return list.filter((i) => {
-      const q = search.toLowerCase()
-      const matchesSearch =
-        !q ||
-        i.name.toLowerCase().includes(q) ||
-        i.mobile.toLowerCase().includes(q) ||
-        i.course.toLowerCase().includes(q)
-      const matchesStatus = status === "all" || i.status === status
-      return matchesSearch && matchesStatus
-    })
-  }, [list, search, status])
-
-  const counts = useMemo(() => {
-    return {
-      total: list.length,
-      newCount: list.filter((i) => i.status === "new").length,
-      converted: list.filter((i) => i.status === "converted").length,
-      lost: list.filter((i) => i.status === "lost").length,
-    }
-  }, [list])
-
-  function updateStatus(id: string, s: InquiryStatus) {
-    setList((prev) => prev.map((i) => (i.id === id ? { ...i, status: s } : i)))
+  const counts = {
+    total: inquiries.length,
+    newCount: inquiries.filter((i) => i.status === "new").length,
+    converted: inquiries.filter((i) => i.status === "converted").length,
+    lost: inquiries.filter((i) => i.status === "lost").length,
   }
-
-  function whatsappLink(mobile: string, name: string) {
-    const phone = mobile.replace(/\D/g, "")
-    const msg = `Hi ${name}, this is Phoenix Computers. Following up on your enquiry — when can we connect for a course walk-through?`
-    return `https://wa.me/${phone}?text=${encodeURIComponent(msg)}`
-  }
+  const conversionRate = counts.total
+    ? `${Math.round((counts.converted / counts.total) * 100)}% rate`
+    : "0%"
 
   return (
     <div className="flex flex-col gap-6">
       <PageHeader
         title="Inquiries"
         description="Track leads, follow-ups and conversion pipeline."
-        actions={
-          <InquiryFormDialog onSubmit={(i) => setList((p) => [i, ...p])} />
-        }
+        actions={<InquiryFormDialog />}
       />
 
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <StatCard
-          title="Total Inquiries"
+          label="Total Inquiries"
           value={counts.total.toString()}
           icon={MessageSquareText}
-          subtitle="All-time leads"
+          hint="all-time leads"
         />
         <StatCard
-          title="New"
+          label="New"
           value={counts.newCount.toString()}
           icon={Phone}
-          subtitle="Awaiting first contact"
+          hint="awaiting first contact"
         />
         <StatCard
-          title="Converted"
+          label="Converted"
           value={counts.converted.toString()}
           icon={CheckCircle2}
-          trend={{
-            value: counts.total
-              ? `${Math.round((counts.converted / counts.total) * 100)}% rate`
-              : "0%",
-            positive: true,
-          }}
-          subtitle="Joined the institute"
+          hint={conversionRate}
+          accent="primary"
         />
         <StatCard
-          title="Lost"
+          label="Lost"
           value={counts.lost.toString()}
           icon={XCircle}
-          subtitle="Did not convert"
+          hint="did not convert"
         />
       </div>
 
-      <Card>
-        <CardHeader className="flex-row items-center justify-between space-y-0">
-          <div>
-            <CardTitle>Inquiry Pipeline</CardTitle>
-            <CardDescription>
-              {filtered.length} of {list.length} inquiries
-            </CardDescription>
-          </div>
-          <div className="flex flex-col gap-2 sm:flex-row">
-            <Input
-              placeholder="Search name, mobile, course..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="w-full sm:w-64"
-            />
-            <Select value={status} onValueChange={setStatus}>
-              <SelectTrigger className="w-full sm:w-40">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All status</SelectItem>
-                <SelectItem value="new">New</SelectItem>
-                <SelectItem value="contacted">Contacted</SelectItem>
-                <SelectItem value="converted">Converted</SelectItem>
-                <SelectItem value="lost">Lost</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-        </CardHeader>
-        <CardContent>
-          <div className="overflow-hidden rounded-lg border border-border/60">
-            <Table>
-              <TableHeader>
-                <TableRow className="bg-muted/30 hover:bg-muted/30">
-                  <TableHead>ID</TableHead>
-                  <TableHead>Name</TableHead>
-                  <TableHead>Mobile</TableHead>
-                  <TableHead>Course</TableHead>
-                  <TableHead>Follow-up</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filtered.length === 0 ? (
-                  <TableRow>
-                    <TableCell
-                      colSpan={7}
-                      className="py-10 text-center text-muted-foreground"
-                    >
-                      No inquiries match your filters.
-                    </TableCell>
-                  </TableRow>
-                ) : (
-                  filtered.map((i) => (
-                    <TableRow key={i.id}>
-                      <TableCell className="font-mono text-xs text-muted-foreground">
-                        {i.id}
-                      </TableCell>
-                      <TableCell className="font-medium">
-                        <div className="flex flex-col">
-                          <span>{i.name}</span>
-                          {i.notes && (
-                            <span className="text-xs font-normal text-muted-foreground">
-                              {i.notes}
-                            </span>
-                          )}
-                        </div>
-                      </TableCell>
-                      <TableCell className="font-mono text-xs">
-                        {i.mobile}
-                      </TableCell>
-                      <TableCell className="text-muted-foreground">
-                        {i.course}
-                      </TableCell>
-                      <TableCell className="text-muted-foreground">
-                        {formatDate(i.followUpDate)}
-                      </TableCell>
-                      <TableCell>
-                        <Badge
-                          variant="outline"
-                          className={STATUS_STYLES[i.status]}
-                        >
-                          {STATUS_LABEL[i.status]}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <div className="flex items-center justify-end gap-1">
-                          <Button asChild size="sm" variant="outline">
-                            <a
-                              href={whatsappLink(i.mobile, i.name)}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              aria-label="Message on WhatsApp"
-                            >
-                              <MessageCircle />
-                            </a>
-                          </Button>
-                          <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                              <Button size="sm" variant="ghost">
-                                Update
-                              </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end">
-                              <DropdownMenuLabel>Set status</DropdownMenuLabel>
-                              <DropdownMenuSeparator />
-                              {(
-                                Object.keys(STATUS_LABEL) as InquiryStatus[]
-                              ).map((s) => (
-                                <DropdownMenuItem
-                                  key={s}
-                                  onClick={() => updateStatus(i.id, s)}
-                                  disabled={i.status === s}
-                                >
-                                  {STATUS_LABEL[s]}
-                                </DropdownMenuItem>
-                              ))}
-                            </DropdownMenuContent>
-                          </DropdownMenu>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ))
-                )}
-              </TableBody>
-            </Table>
-          </div>
-        </CardContent>
-      </Card>
+      <InquiriesTable inquiries={inquiries} />
     </div>
   )
 }

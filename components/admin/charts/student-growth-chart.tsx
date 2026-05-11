@@ -7,14 +7,14 @@ import {
   ChartTooltipContent,
   type ChartConfig,
 } from "@/components/ui/chart"
-import { studentGrowth } from "@/lib/mock-data"
 
 const chartConfig = {
   students: { label: "Students", color: "var(--chart-1)" },
 } satisfies ChartConfig
 
-export function StudentGrowthChart() {
-  const data = studentGrowth()
+type Row = { month: string; students: number }
+
+export function StudentGrowthChart({ data = [] }: { data?: Row[] }) {
   return (
     <ChartContainer config={chartConfig} className="aspect-[16/9] w-full">
       <ResponsiveContainer>

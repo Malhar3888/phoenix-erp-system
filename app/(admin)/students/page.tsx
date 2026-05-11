@@ -3,8 +3,13 @@ import { Button } from "@/components/ui/button"
 import { PageHeader } from "@/components/admin/page-header"
 import { StudentFormDialog } from "@/components/admin/student-form-dialog"
 import { StudentsTable } from "@/components/admin/students-table"
+import { getAllStudents } from "@/lib/queries"
 
-export default function StudentsPage() {
+export const dynamic = "force-dynamic"
+
+export default async function StudentsPage() {
+  const students = await getAllStudents()
+
   return (
     <div className="space-y-6">
       <PageHeader
@@ -20,7 +25,7 @@ export default function StudentsPage() {
           </>
         }
       />
-      <StudentsTable />
+      <StudentsTable students={students} />
     </div>
   )
 }

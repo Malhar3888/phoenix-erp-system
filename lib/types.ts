@@ -22,6 +22,7 @@ export type PaymentMode = "Cash" | "UPI" | "Card" | "Bank Transfer"
 export type Payment = {
   id: string
   studentId: string
+  studentName?: string
   amount: number
   mode: PaymentMode
   receiptNo: string
@@ -54,18 +55,23 @@ export type Expense = {
   category: ExpenseCategory
   date: string
   note?: string
+  paidTo?: string
 }
 
+export type InquirySource = "Walk-in" | "Phone" | "Website" | "Referral" | "Social Media" | "Other"
 export type InquiryStatus = "new" | "contacted" | "converted" | "lost"
 
 export type Inquiry = {
   id: string
   name: string
   mobile: string
+  email?: string
   course: string
+  source: InquirySource
   followUpDate: string
   status: InquiryStatus
   notes?: string
+  date: string
 }
 
 export type DocumentType =
