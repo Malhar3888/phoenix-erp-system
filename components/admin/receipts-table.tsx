@@ -1,8 +1,7 @@
 "use client"
 
 import { useMemo, useState } from "react"
-import { Receipt } from "lucide-react"
-import { ReceiptDialog } from "@/components/admin/receipt-dialog"
+import { ReceiptViewer } from "@/components/admin/receipt-viewer"
 import {
   Card,
   CardContent,
@@ -18,7 +17,6 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
-import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { formatINR, formatDate } from "@/lib/format"
@@ -32,7 +30,6 @@ export function ReceiptsTable({
   students: Student[]
 }) {
   const [search, setSearch] = useState("")
-  const [active, setActive] = useState<{ payment: Payment; student: Student } | null>(null)
 
   const studentMap = useMemo(() => {
     const m = new Map<string, Student>()
@@ -123,15 +120,11 @@ export function ReceiptsTable({
                       {formatINR(payment.amount)}
                     </TableCell>
                     <TableCell className="text-right">
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        disabled={!student}
-                        onClick={() => student && setActive({ payment, student })}
-                      >
-                        <Receipt />
-                        View
-                      </Button>
+                      <ReceiptViewer
+                        payment={payment}
+                        student={student}
+                        receiptNumber={payment.receiptNo}
+                      />
                     </TableCell>
                   </TableRow>
                 ))
@@ -140,15 +133,6 @@ export function ReceiptsTable({
           </Table>
         </div>
       </CardContent>
-
-      {active && (
-        <ReceiptDialog
-          payment={active.payment}
-          student={active.student}
-          open={!!active}
-          onOpenChange={(o) => !o && setActive(null)}
-        />
-      )}
     </Card>
   )
 }
