@@ -180,26 +180,26 @@ export function StudentFormDialog({
 
           <div className="space-y-2">
             <Label>Course</Label>
-            <Select value={course} onValueChange={setCourse}>
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {courses.length > 0 ? (
-                  courses
+            {courses.length > 0 ? (
+              <Select value={course} onValueChange={setCourse}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {courses
                     .filter((c) => c.status === "Active")
                     .map((c) => (
                       <SelectItem key={c.id} value={c.name}>
                         {c.name}
                       </SelectItem>
-                    ))
-                ) : (
-                  <SelectItem disabled value="">
-                    No active courses
-                  </SelectItem>
-                )}
-              </SelectContent>
-            </Select>
+                    ))}
+                </SelectContent>
+              </Select>
+            ) : (
+              <div className="flex h-10 items-center rounded-md border border-input bg-background px-3 py-2 text-sm text-muted-foreground">
+                No active courses available
+              </div>
+            )}
           </div>
 
           <div className="space-y-2">
